@@ -2,12 +2,14 @@
 
 from datetime import UTC, datetime
 
-from pydantic import BaseModel, Field
+from pydantic import Field
+
+from src.core.models.base import CamelModel
 
 from src.core.enums import CorrectionType
 
 
-class Correction(BaseModel):
+class Correction(CamelModel):
     """
     A user override of an agent decision. Partition key `/bidId`. Saving one
     snapshots the original agent output for audit and triggers the
@@ -24,7 +26,7 @@ class Correction(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
-class LearnedRule(BaseModel):
+class LearnedRule(CamelModel):
     """
     A distilled, reusable instruction injected into a target agent's prompt via
     the `{learned_rules}` placeholder. Partition key `/agentName` so a single

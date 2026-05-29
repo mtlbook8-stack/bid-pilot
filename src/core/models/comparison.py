@@ -10,7 +10,9 @@ CompactedContext summary.
 
 from datetime import UTC, datetime
 
-from pydantic import BaseModel, Field
+from pydantic import Field
+
+from src.core.models.base import CamelModel
 
 from src.core.enums import ChatRole, ComparisonPhase, DecisionStatus, Sentiment
 
@@ -18,7 +20,7 @@ from src.core.enums import ChatRole, ComparisonPhase, DecisionStatus, Sentiment
 COMPACTION_THRESHOLD = 20
 
 
-class CostCell(BaseModel):
+class CostCell(CamelModel):
     """One vendor's value for a single cost row."""
 
     bid_id: str
@@ -29,7 +31,7 @@ class CostCell(BaseModel):
     flags: list[str] = Field(default_factory=list)
 
 
-class CostRow(BaseModel):
+class CostRow(CamelModel):
     """A normalized line item compared across vendors."""
 
     row_id: str
@@ -38,7 +40,7 @@ class CostRow(BaseModel):
     cells: list[CostCell] = Field(default_factory=list)
 
 
-class VendorTotal(BaseModel):
+class VendorTotal(CamelModel):
     """Roll-up total and scope completeness for one vendor."""
 
     bid_id: str
@@ -49,7 +51,7 @@ class VendorTotal(BaseModel):
     scope_caveats: list[str] = Field(default_factory=list)
 
 
-class CostOutlier(BaseModel):
+class CostOutlier(CamelModel):
     """A line item where one vendor deviates sharply from the others."""
 
     row_label: str
@@ -58,7 +60,7 @@ class CostOutlier(BaseModel):
     direction: str  # "above" | "below"
 
 
-class CostAnalysis(BaseModel):
+class CostAnalysis(CamelModel):
     """Aggregate cost findings produced by CostComparator (Agent 6)."""
 
     lowest_total_bid_id: str | None = None
@@ -67,7 +69,7 @@ class CostAnalysis(BaseModel):
     significant_outliers: list[CostOutlier] = Field(default_factory=list)
 
 
-class FeatureCell(BaseModel):
+class FeatureCell(CamelModel):
     """One vendor's value + sentiment for a single feature row."""
 
     bid_id: str
@@ -77,7 +79,7 @@ class FeatureCell(BaseModel):
     source_quote: str = ""
 
 
-class FeatureRow(BaseModel):
+class FeatureRow(CamelModel):
     """A non-cost differentiator compared across vendors (Agent 7)."""
 
     row_id: str
@@ -87,7 +89,7 @@ class FeatureRow(BaseModel):
     cells: list[FeatureCell] = Field(default_factory=list)
 
 
-class RedFlag(BaseModel):
+class RedFlag(CamelModel):
     """A vendor-specific risk surfaced by FeatureAnalyst."""
 
     bid_id: str
@@ -96,7 +98,7 @@ class RedFlag(BaseModel):
     severity: str  # "high" | "medium" | "low"
 
 
-class ComparisonTable(BaseModel):
+class ComparisonTable(CamelModel):
     """
     The assembled comparison: cost rows (with totals + analysis) and feature
     rows (with red flags). This is what the frontend renders and what chat
@@ -111,7 +113,7 @@ class ComparisonTable(BaseModel):
     feature_summary: str = ""
 
 
-class ChatMessage(BaseModel):
+class ChatMessage(CamelModel):
     """One turn in the comparison conversation."""
 
     role: ChatRole
@@ -121,7 +123,7 @@ class ChatMessage(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
-class CompactedContext(BaseModel):
+class CompactedContext(CamelModel):
     """
     Structured replacement for raw history once it exceeds the threshold.
     Downstream agents receive only the sections they need.
@@ -138,7 +140,7 @@ class CompactedContext(BaseModel):
     compressed_from_message_count: int = 0
 
 
-class ComparisonSession(BaseModel):
+class ComparisonSession(CamelModel):
     """
     A live comparison of the bids on one job. Partition key `/projectId`.
 

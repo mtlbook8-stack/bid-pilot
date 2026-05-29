@@ -63,7 +63,7 @@ class CosmosLinkedAccountStore:
         All accounts a user has linked. Single-partition query on `/userId`, so it
         scopes to one physical partition and is fast and cheap.
         """
-        query = "SELECT * FROM c WHERE c.user_id = @uid"
+        query = "SELECT * FROM c WHERE c.userId = @uid"
         params = [{"name": "@uid", "value": user_id}]
         try:
             items = self._container.query_items(
@@ -88,7 +88,7 @@ class CosmosLinkedAccountStore:
         mailbox regardless of owner; inactive accounts are excluded so an unlinked
         mailbox stops being polled without losing its historical record.
         """
-        query = "SELECT * FROM c WHERE c.is_active = true"
+        query = "SELECT * FROM c WHERE c.isActive = true"
         try:
             items = self._container.query_items(query=query)
             return [LinkedAccount.model_validate(item) async for item in items]

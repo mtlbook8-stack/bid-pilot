@@ -3,12 +3,14 @@
 import hashlib
 from datetime import UTC, datetime
 
-from pydantic import BaseModel, Field
+from pydantic import Field
+
+from src.core.models.base import CamelModel
 
 from src.core.enums import RejectionCategory
 
 
-class RejectedEmailMetadata(BaseModel):
+class RejectedEmailMetadata(CamelModel):
     """
     Just enough to list a rejected email and re-fetch it from Graph on restore.
 

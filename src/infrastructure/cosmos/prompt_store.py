@@ -32,7 +32,7 @@ class CosmosPromptStore:
         (`modelConfig`) — all other fields dump under their snake_case names.
         """
         query = (
-            "SELECT * FROM c WHERE c.agent_name = @name AND c.is_active = true"
+            "SELECT * FROM c WHERE c.agentName = @name AND c.isActive = true"
         )
         params = [{"name": "@name", "value": agent_name}]
         try:
@@ -58,7 +58,7 @@ class CosmosPromptStore:
         Every agent's active prompt (cross-partition). Used at startup to warm the
         prompt cache so each agent's first call avoids a round-trip.
         """
-        query = "SELECT * FROM c WHERE c.is_active = true"
+        query = "SELECT * FROM c WHERE c.isActive = true"
         try:
             items = self._container.query_items(query=query)
             return [PromptTemplate.model_validate(item) async for item in items]

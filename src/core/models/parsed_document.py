@@ -6,10 +6,12 @@ Lives in core so both the ingestion layer (which produces it) and the agents
 knowing about the Azure SDK.
 """
 
-from pydantic import BaseModel, Field
+from pydantic import Field
+
+from src.core.models.base import CamelModel
 
 
-class ParsedTable(BaseModel):
+class ParsedTable(CamelModel):
     """A single table extracted from a document, flattened to rows of cells."""
 
     page_number: int = Field(..., ge=1)
@@ -39,14 +41,14 @@ class ParsedTable(BaseModel):
         return "\n".join([header, separator, *body])
 
 
-class ParsedPage(BaseModel):
+class ParsedPage(CamelModel):
     """Text content of a single page."""
 
     page_number: int = Field(..., ge=1)
     text: str = ""
 
 
-class ParsedDocument(BaseModel):
+class ParsedDocument(CamelModel):
     """
     Full parsed representation of one attachment.
 

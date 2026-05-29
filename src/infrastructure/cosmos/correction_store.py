@@ -44,7 +44,7 @@ class CosmosCorrectionStore:
         All corrections recorded against a bid. Single-partition query on
         `/bidId`, so it scopes to one physical partition and is fast and cheap.
         """
-        query = "SELECT * FROM c WHERE c.bid_id = @bid"
+        query = "SELECT * FROM c WHERE c.bidId = @bid"
         params = [{"name": "@bid", "value": bid_id}]
         try:
             items = self._container.query_items(

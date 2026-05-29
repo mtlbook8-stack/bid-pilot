@@ -67,7 +67,7 @@ class CosmosComparisonSessionStore:
         All comparison sessions for a project. Single-partition query on
         `/projectId`, so it scopes to one physical partition and is fast/cheap.
         """
-        query = "SELECT * FROM c WHERE c.project_id = @pid"
+        query = "SELECT * FROM c WHERE c.projectId = @pid"
         params = [{"name": "@pid", "value": project_id}]
         try:
             items = self._container.query_items(

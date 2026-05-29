@@ -62,7 +62,7 @@ class CosmosBidStore:
 
     async def list_for_project(self, project_id: str) -> list[IngestedBid]:
         """All bids matched to a project (cross-partition query on /id)."""
-        query = "SELECT * FROM c WHERE c.matched_project_id = @pid"
+        query = "SELECT * FROM c WHERE c.matchedProjectId = @pid"
         params = [{"name": "@pid", "value": project_id}]
         return await self._query(
             query, params, code="STORE_BID_LIST_FOR_PROJECT",
@@ -71,7 +71,7 @@ class CosmosBidStore:
 
     async def list_for_job(self, job_id: str) -> list[IngestedBid]:
         """All bids matched to a job (cross-partition query on /id)."""
-        query = "SELECT * FROM c WHERE c.matched_job_id = @jid"
+        query = "SELECT * FROM c WHERE c.matchedJobId = @jid"
         params = [{"name": "@jid", "value": job_id}]
         return await self._query(
             query, params, code="STORE_BID_LIST_FOR_JOB",

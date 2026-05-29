@@ -2,10 +2,12 @@
 
 from datetime import UTC, datetime
 
-from pydantic import BaseModel, Field
+from pydantic import Field
+
+from src.core.models.base import CamelModel
 
 
-class ProjectSummary(BaseModel):
+class ProjectSummary(CamelModel):
     """
     A project groups jobs (trade scopes) and the bids competing on them.
 

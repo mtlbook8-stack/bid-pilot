@@ -30,7 +30,7 @@ class CosmosRuleStore:
         the per-run overhead minimal. Inactive rules are excluded so a retired
         rule stops influencing the prompt without being deleted (audit trail).
         """
-        query = "SELECT * FROM c WHERE c.agent_name = @name AND c.is_active = true"
+        query = "SELECT * FROM c WHERE c.agentName = @name AND c.isActive = true"
         params = [{"name": "@name", "value": agent_name}]
         try:
             items = self._container.query_items(

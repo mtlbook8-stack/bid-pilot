@@ -77,7 +77,7 @@ class CosmosProjectStore:
         sufficient because the matcher stores `normalized_address` per project to
         prevent duplicates from forming in the first place.
         """
-        query = "SELECT * FROM c WHERE c.normalized_address = @addr"
+        query = "SELECT * FROM c WHERE c.normalizedAddress = @addr"
         params = [{"name": "@addr", "value": normalized_address}]
         try:
             items = self._container.query_items(query=query, parameters=params)

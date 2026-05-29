@@ -2,12 +2,14 @@
 
 from datetime import UTC, datetime
 
-from pydantic import BaseModel, Field
+from pydantic import Field
+
+from src.core.models.base import CamelModel
 
 from src.core.enums import TradeCategory
 
 
-class JobSummary(BaseModel):
+class JobSummary(CamelModel):
     """
     A job is one trade scope on a project. Multiple bids for the same trade on
     the same project compete on the same job, which is the unit a comparison

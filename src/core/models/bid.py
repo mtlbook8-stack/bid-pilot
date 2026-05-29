@@ -3,12 +3,14 @@
 import hashlib
 from datetime import UTC, datetime
 
-from pydantic import BaseModel, Field
+from pydantic import Field
+
+from src.core.models.base import CamelModel
 
 from src.core.enums import BidStatus, TradeCategory
 
 
-class AgentResult(BaseModel):
+class AgentResult(CamelModel):
     """
     Snapshot of one agent's structured output, stored on the bid for audit and
     for the UI's AgentResultPanel. Confidence drives review prioritization.
@@ -21,7 +23,7 @@ class AgentResult(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
-class IngestedBid(BaseModel):
+class IngestedBid(CamelModel):
     """
     A construction bid parsed from an email attachment and driven through the
     3-agent pipeline.

@@ -2,10 +2,12 @@
 
 from datetime import UTC, datetime
 
-from pydantic import BaseModel, Field
+from pydantic import Field
+
+from src.core.models.base import CamelModel
 
 
-class LinkedAccount(BaseModel):
+class LinkedAccount(CamelModel):
     """
     An email account BidPilot polls for bids. Partition key `/userId`.
 
