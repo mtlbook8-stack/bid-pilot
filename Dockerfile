@@ -23,7 +23,7 @@ RUN tdnf install -y gcc glibc-devel binutils make python3-devel \
 WORKDIR /app
 
 # Install into an isolated venv so stage 2 only needs to copy /opt/venv.
-RUN python -m venv /opt/venv
+RUN python3 -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 COPY requirements.txt ./
