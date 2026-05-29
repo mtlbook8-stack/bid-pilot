@@ -67,22 +67,39 @@ class GraphTokenManager:
         self._settings = settings
         self._secret_reader = secret_reader
         self._secret_writer = secret_writer
-        # Build the MSAL confidential client once. The authority encodes the
-        # tenant; the client id/secret authenticate BidPilot's app registration
-        # so Azure AD trusts the refresh-token exchange.
-        try:
-            self._app = msal.ConfidentialClientApplication(
-                client_id=settings.entra_client_id,
-                client_credential=settings.entra_client_secret,
-                authority=f"https://login.microsoftonline.com/{settings.entra_tenant_id}",
-            )
-        except Exception as exc:
-            raise AppError(
-                code="GRAPH_TOKEN",
-                message="Failed to initialize the MSAL confidential client",
-                context={"tenant_id": settings.entra_tenant_id},
-                cause=exc,
-            )
+        # The MSAL client is built lazily on first use, not here. Why: the
+        # composition root constructs this manager unconditionally at startup, but
+        # a dev/no-email deployment may run with empty Entra settings (the API's
+        # dev-auth mode). Eagerly building MSAL with an empty tenant raises and
+        # would block the whole app from starting; deferring construction means
+        # only an actual Graph call fails when email integration is unconfigured.
+        self._app: msal.ConfidentialClientApplication | None = None
+
+    def _get_app(self) -> msal.ConfidentialClientApplication:
+        """
+        Build (once) and return the MSAL confidential client.
+
+        The authority encodes the tenant; the client id/secret authenticate
+        BidPilot's app registration so Azure AD trusts the refresh-token exchange.
+        Constructed on first use so an unconfigured deployment fails only when it
+        actually tries to use Graph (see __init__).
+        """
+        if self._app is None:
+            try:
+                self._app = msal.ConfidentialClientApplication(
+                    client_id=self._settings.entra_client_id,
+                    client_credential=self._settings.entra_client_secret,
+                    authority="https://login.microsoftonline.com/"
+                    f"{self._settings.entra_tenant_id}",
+                )
+            except Exception as exc:
+                raise AppError(
+                    code="GRAPH_TOKEN",
+                    message="Failed to initialize the MSAL confidential client",
+                    context={"tenant_id": self._settings.entra_tenant_id},
+                    cause=exc,
+                )
+        return self._app
 
     async def get_access_token(self, account: LinkedAccount) -> str:
         """
@@ -169,7 +186,7 @@ class GraphTokenManager:
         surrounding async logic in `get_access_token` reads linearly.
         """
         return await asyncio.to_thread(
-            self._app.acquire_token_by_refresh_token,
+            self._get_app().acquire_token_by_refresh_token,
             refresh_token,
             scopes=scopes,
         )

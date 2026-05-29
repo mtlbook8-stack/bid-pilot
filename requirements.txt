@@ -21,6 +21,9 @@ azure-functions==1.21.3
 # AI / HTTP
 httpx==0.28.1
 anthropic==0.42.0
+# Async transport backing the azure-*.aio SDK clients (Cosmos, Blob, Key Vault,
+# Doc Intelligence). Required at runtime; azure-core selects it for aio clients.
+aiohttp==3.11.11
 
 # Microsoft Graph / auth
 msal==1.31.1
