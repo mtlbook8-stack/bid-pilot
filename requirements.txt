@@ -1,0 +1,38 @@
+# BidPilot API + Functions runtime dependencies.
+# Pinned to compatible minor ranges; Azure SDKs share azure-core.
+
+# Web framework
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.10.4
+pydantic-settings==2.7.1
+python-multipart==0.0.20
+sse-starlette==2.2.1
+
+# Azure SDKs
+azure-cosmos==4.9.0
+azure-storage-blob==12.24.0
+azure-identity==1.19.0
+azure-keyvault-secrets==4.9.0
+azure-ai-documentintelligence==1.0.0
+azure-maps-search==1.0.0b2
+azure-functions==1.21.3
+
+# AI / HTTP
+httpx==0.28.1
+anthropic==0.42.0
+# Async transport backing the azure-*.aio SDK clients (Cosmos, Blob, Key Vault,
+# Doc Intelligence). Required at runtime; azure-core selects it for aio clients.
+aiohttp==3.11.11
+
+# Microsoft Graph / auth
+msal==1.31.1
+
+# Telemetry
+azure-monitor-opentelemetry==1.6.4
+opentelemetry-api==1.29.0
+opentelemetry-sdk==1.29.0
+opentelemetry-instrumentation-fastapi==0.50b0
+
+# Auth / JWT
+pyjwt[crypto]==2.10.1

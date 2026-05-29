@@ -1,0 +1,7 @@
+{
+    "claude-sonnet-4-6": {"input_per_1k": 0.003, "output_per_1k": 0.015},
+    "claude-sonnet-4-5": {"input_per_1k": 0.003, "output_per_1k": 0.015},
+    "claude-haiku-4-5": {"input_per_1k": 0.0008, "output_per_1k": 0.004},
+    "gpt-5": {"input_per_1k": 0.005, "output_per_1k": 0.015},
+    "gpt-4.1-mini": {"input_per_1k": 0.0004, "output_per_1k": 0.0016}
+}
