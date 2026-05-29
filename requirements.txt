@@ -15,7 +15,7 @@ azure-storage-blob==12.24.0
 azure-identity==1.19.0
 azure-keyvault-secrets==4.9.0
 azure-ai-documentintelligence==1.0.0
-azure-maps-search==1.0.0b3
+azure-maps-search==1.0.0b2
 azure-functions==1.21.3
 
 # AI / HTTP
