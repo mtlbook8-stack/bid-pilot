@@ -479,9 +479,19 @@ class BidProcessingOrchestrator:
             if match is not None:
                 return match
 
+        # A job's identity is (project, trade): one trade scope per project. The id
+        # is therefore deterministic, which also guards against clobbering — if a
+        # job for this trade already exists (e.g. Agent 3 mislabeled this as "new"),
+        # reuse it so its existing bid_ids are preserved rather than overwritten by
+        # a fresh, empty JobSummary on upsert.
+        new_id = IngestedBid.make_id(project_id, f"job::{trade.value}")
+        collision = next((j for j in existing_jobs if j.id == new_id), None)
+        if collision is not None:
+            return collision
+
         scope = self._opt_str(result.get("scope_summary"))
         return JobSummary(
-            id=IngestedBid.make_id(project_id, f"job::{trade.value}"),
+            id=new_id,
             project_id=project_id,
             trade_category=trade,
             job_name=scope or trade.value,
