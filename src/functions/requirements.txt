@@ -1,0 +1,8 @@
+# Azure Functions host dependencies for BidPilot's background triggers.
+#
+# The Functions host reuses the exact same orchestrators, stores, and AppContainer
+# as the API (build doc section 3, Rule 5: wiring defined once), so it depends on
+# the identical pinned dependency set rather than a divergent copy. The only
+# Functions-specific package — azure-functions, the v2 programming-model runtime
+# library — is included in the shared root requirements.
+-r ../../requirements.txt
