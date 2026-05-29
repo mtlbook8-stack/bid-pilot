@@ -40,7 +40,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 # Run as a non-root user. Container Apps doesn't require it, but it's defence in
 # depth — limits what a compromised process can touch inside the container.
-RUN groupadd --system --gid 1000 app \
+RUN tdnf install -y shadow-utils \
+    && tdnf clean all \
+    && groupadd --system --gid 1000 app \
     && useradd --system --uid 1000 --gid app --home-dir /home/app --create-home --shell /sbin/nologin app
 
 WORKDIR /app
