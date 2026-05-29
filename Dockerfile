@@ -6,7 +6,10 @@
 # Azure Container Apps).
 
 # ---------- Stage 1: builder ----------
-FROM python:3.12-slim AS builder
+# Use Microsoft Artifact Registry's Azure Linux Python image — avoids Docker
+# Hub anonymous pull rate limits when building from ACR Tasks. Slim base, no
+# compilers in the runtime stage.
+FROM mcr.microsoft.com/azurelinux/base/python:3.12 AS builder
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -14,9 +17,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
 # Build deps for any wheel that needs compilation (cryptography, aiohttp, etc.).
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends build-essential gcc \
-    && rm -rf /var/lib/apt/lists/*
+RUN tdnf install -y gcc glibc-devel binutils make python3-devel \
+    && tdnf clean all
 
 WORKDIR /app
 
@@ -29,7 +31,7 @@ RUN pip install --upgrade pip \
     && pip install -r requirements.txt
 
 # ---------- Stage 2: runtime ----------
-FROM python:3.12-slim AS runtime
+FROM mcr.microsoft.com/azurelinux/base/python:3.12 AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -39,7 +41,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 # Run as a non-root user. Container Apps doesn't require it, but it's defence in
 # depth — limits what a compromised process can touch inside the container.
 RUN groupadd --system --gid 1000 app \
-    && useradd --system --uid 1000 --gid app --create-home --shell /usr/sbin/nologin app
+    && useradd --system --uid 1000 --gid app --home-dir /home/app --create-home --shell /sbin/nologin app
 
 WORKDIR /app
 
