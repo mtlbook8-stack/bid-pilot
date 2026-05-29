@@ -31,6 +31,9 @@ param entraClientSecret string = ''
 @description('Container image for the API. Override in CD once the real image is published.')
 param apiContainerImage string = 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
 
+@description('Public origin of the deployed frontend (e.g. https://app.bidpilot.com). Used for CORS. Empty defaults to dev origins only.')
+param frontendUrl string = ''
+
 @description('Common tags applied to every resource.')
 param tags object = {
   application: 'bidpilot'
@@ -60,6 +63,8 @@ var containerAppEnvName = '${baseName}-cae'
 var containerAppName = '${baseName}-api'
 var functionAppName = '${baseName}-func-${uniqueSuffix}'
 var functionPlanName = '${baseName}-funcplan'
+// ACR names: 5-50 chars, alphanumeric only (no hyphens), globally unique.
+var containerRegistryName = take(toLower(replace('${namePrefix}${environmentName}acr${uniqueSuffix}', '-', '')), 50)
 
 // ---------------------------------------------------------------------------
 // Monitoring (Log Analytics + workspace-based App Insights)
@@ -149,6 +154,15 @@ module maps 'modules/maps.bicep' = {
 // ---------------------------------------------------------------------------
 // Container Apps environment + API app
 // ---------------------------------------------------------------------------
+module containerRegistry 'modules/container_registry.bicep' = {
+  name: 'containerRegistry'
+  params: {
+    location: location
+    registryName: containerRegistryName
+    tags: tags
+  }
+}
+
 module containerApps 'modules/container_apps.bicep' = {
   name: 'containerApps'
   params: {
@@ -157,6 +171,7 @@ module containerApps 'modules/container_apps.bicep' = {
     containerAppName: containerAppName
     logAnalyticsWorkspaceId: monitoring.outputs.workspaceId
     containerImage: apiContainerImage
+    containerRegistryLoginServer: containerRegistry.outputs.loginServer
     cosmosEndpoint: cosmos.outputs.cosmosEndpoint
     cosmosDatabaseName: cosmos.outputs.databaseName
     blobEndpoint: storage.outputs.blobEndpoint
@@ -168,6 +183,7 @@ module containerApps 'modules/container_apps.bicep' = {
     appInsightsConnectionString: monitoring.outputs.appInsightsConnectionString
     entraClientId: entraClientId
     entraTenantId: entraTenantId
+    frontendUrl: frontendUrl
     tags: tags
   }
 }
@@ -211,6 +227,7 @@ module roles 'modules/roles.bicep' = {
     aiServicesId: aiFoundry.outputs.aiServicesId
     docIntelligenceId: docIntelligence.outputs.docIntelligenceId
     mapsAccountId: maps.outputs.mapsAccountId
+    containerRegistryId: containerRegistry.outputs.registryId
   }
 }
 
@@ -243,3 +260,12 @@ output azureMapsClientId string = maps.outputs.mapsClientId
 
 @description('Application Insights connection string.')
 output appInsightsConnectionString string = monitoring.outputs.appInsightsConnectionString
+
+@description('Container registry login server (used by CD to tag + push the API image).')
+output containerRegistryLoginServer string = containerRegistry.outputs.loginServer
+
+@description('Container registry name (used by `az acr` commands in CD).')
+output containerRegistryName string = containerRegistry.outputs.registryName
+
+@description('Container App name (used by CD to set the new image revision).')
+output containerAppName string = containerApps.outputs.containerAppName

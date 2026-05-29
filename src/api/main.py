@@ -20,6 +20,7 @@ from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from src.api.config import get_settings
 from src.api.dependencies import get_current_user
 from src.api.middleware.error_handler import register_error_handlers
 from src.api.middleware.telemetry import TelemetryMiddleware
@@ -43,12 +44,22 @@ from src.composition.container import AppContainer
 logger = logging.getLogger(__name__)
 
 # Allowed browser origins. The Vite dev server runs on 5173 (build doc section
-# 11 forwards that port); production origins are added via the same list when
-# deployed. Kept explicit rather than "*" so credentialed requests are permitted.
-_CORS_ORIGINS = [
+# 11 forwards that port); the deployed SPA origin is added at app-build time from
+# settings.frontend_url. Kept explicit rather than "*" so credentialed requests
+# are permitted.
+_DEV_CORS_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
 ]
+
+
+def _build_cors_origins() -> list[str]:
+    """Dev origins plus the deployed SPA origin (when configured)."""
+    origins = list(_DEV_CORS_ORIGINS)
+    frontend_url = get_settings().frontend_url.strip().rstrip("/")
+    if frontend_url and frontend_url not in origins:
+        origins.append(frontend_url)
+    return origins
 
 
 @asynccontextmanager
@@ -137,7 +148,7 @@ def create_app() -> FastAPI:
     app.add_middleware(TelemetryMiddleware)
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=_CORS_ORIGINS,
+        allow_origins=_build_cors_origins(),
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

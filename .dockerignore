@@ -1,0 +1,28 @@
+# Keep the build context small and free of secrets / dev cruft.
+.git
+.gitignore
+.github
+.vscode
+.devcontainer
+.venv
+venv
+__pycache__
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+.env
+.env.*
+!.env.example
+**/.DS_Store
+
+# Frontend is built and served separately (Static Web Apps / Storage + CDN).
+frontend
+
+# Infra and docs are not needed inside the runtime image.
+infra
+tests
+*.md
+!README.md

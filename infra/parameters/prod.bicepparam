@@ -16,3 +16,6 @@ param entraClientSecret = readEnvironmentVariable('BIDPILOT_ENTRA_CLIENT_SECRET'
 
 // CD pipeline overrides this with the immutable, digest-pinned production image.
 param apiContainerImage = readEnvironmentVariable('BIDPILOT_API_IMAGE', 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest')
+
+// Public origin of the deployed SPA. Used by the API for CORS.
+param frontendUrl = readEnvironmentVariable('BIDPILOT_FRONTEND_URL', '')

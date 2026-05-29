@@ -1,0 +1,104 @@
+name: deploy
+
+# Build the API image, push to ACR, deploy infra (Bicep) with the new image
+# digest, and update the Container App revision.
+#
+# Auth: federated credentials (OIDC) on an Entra app registration with
+# Contributor + User Access Administrator on the target resource group. No
+# long-lived secrets in GitHub.
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        required: true
+        default: dev
+        type: choice
+        options: [dev, prod]
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "infra/**"
+      - "requirements.txt"
+      - "Dockerfile"
+      - ".github/workflows/deploy.yml"
+
+permissions:
+  id-token: write   # OIDC token for azure/login
+  contents: read
+
+concurrency:
+  group: deploy-${{ github.event.inputs.environment || 'dev' }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: deploy ${{ github.event.inputs.environment || 'dev' }}
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'dev' }}
+    env:
+      ENV_NAME: ${{ github.event.inputs.environment || 'dev' }}
+      RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+      # All BIDPILOT_* values are consumed by infra/parameters/*.bicepparam via
+      # readEnvironmentVariable(). Secrets come from the GitHub Environment.
+      BIDPILOT_ENTRA_CLIENT_ID: ${{ vars.BIDPILOT_ENTRA_CLIENT_ID }}
+      BIDPILOT_ENTRA_TENANT_ID: ${{ vars.BIDPILOT_ENTRA_TENANT_ID }}
+      BIDPILOT_ENTRA_CLIENT_SECRET: ${{ secrets.BIDPILOT_ENTRA_CLIENT_SECRET }}
+      BIDPILOT_FRONTEND_URL: ${{ vars.BIDPILOT_FRONTEND_URL }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      # First pass: deploy infra so ACR exists. We pass the placeholder image
+      # so the Container App revision boots while we go build the real one.
+      - name: Deploy infra (provision ACR + base resources)
+        id: infra_provision
+        uses: azure/arm-deploy@v2
+        with:
+          scope: resourcegroup
+          subscriptionId: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          resourceGroupName: ${{ env.RESOURCE_GROUP }}
+          template: infra/main.bicep
+          parameters: infra/parameters/${{ env.ENV_NAME }}.bicepparam
+          failOnStdErr: false
+
+      - name: Build + push image to ACR
+        id: image
+        env:
+          ACR_NAME: ${{ steps.infra_provision.outputs.containerRegistryName }}
+          ACR_LOGIN_SERVER: ${{ steps.infra_provision.outputs.containerRegistryLoginServer }}
+        run: |
+          set -euo pipefail
+          IMAGE_TAG="${GITHUB_SHA::12}"
+          IMAGE_REF="${ACR_LOGIN_SERVER}/bidpilot-api:${IMAGE_TAG}"
+          # ACR Build runs the Docker build in Azure (no Docker daemon needed in
+          # the runner) and pushes the resulting image in one step.
+          az acr build \
+            --registry "$ACR_NAME" \
+            --image "bidpilot-api:${IMAGE_TAG}" \
+            --file Dockerfile \
+            .
+          echo "image_ref=${IMAGE_REF}" >> "$GITHUB_OUTPUT"
+
+      # Second pass: redeploy infra with the real image so the Container App
+      # rolls a new revision pointing at the just-pushed digest.
+      - name: Deploy infra (publish new image revision)
+        uses: azure/arm-deploy@v2
+        env:
+          BIDPILOT_API_IMAGE: ${{ steps.image.outputs.image_ref }}
+        with:
+          scope: resourcegroup
+          subscriptionId: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          resourceGroupName: ${{ env.RESOURCE_GROUP }}
+          template: infra/main.bicep
+          parameters: infra/parameters/${{ env.ENV_NAME }}.bicepparam apiContainerImage=${{ steps.image.outputs.image_ref }}
+          failOnStdErr: false

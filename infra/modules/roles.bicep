@@ -35,11 +35,15 @@ param docIntelligenceId string
 @description('Resource id of the Azure Maps account.')
 param mapsAccountId string
 
+@description('Resource id of the Azure Container Registry (for AcrPull).')
+param containerRegistryId string
+
 // --- Built-in role definition GUIDs (Azure RBAC) ---
 var storageBlobDataContributorRoleId = 'ba92f5b4-2d11-453d-a403-e96b0029c9fe'
 var keyVaultSecretsUserRoleId = '4633458b-17de-408a-b874-0445c86b69e6'
 var cognitiveServicesUserRoleId = 'a97b65f3-24c7-4388-baec-2e87135dc908'
-var azureMapsDataReaderRoleId = '423170ca-a8f6-4b0f-8487-9e4eb8f49bfc'
+var azureMapsDataReaderRoleId = '423170ca-a8f6-4b0f-8487-9e4eb8f49bfa'
+var acrPullRoleId = '7f951dda-4ed3-4680-a7ca-43fe172d538d'
 
 // --- Cosmos SQL (data-plane) built-in role: Cosmos DB Data Contributor ---
 var cosmosDataContributorRoleId = '00000000-0000-0000-0000-000000000002'
@@ -68,6 +72,9 @@ resource docIntelligence 'Microsoft.CognitiveServices/accounts@2024-10-01' exist
 }
 resource maps 'Microsoft.Maps/accounts@2023-06-01' existing = {
   name: last(split(mapsAccountId, '/'))
+}
+resource containerRegistry 'Microsoft.ContainerRegistry/registries@2023-11-01-preview' existing = {
+  name: last(split(containerRegistryId, '/'))
 }
 
 // ---------------------------------------------------------------------------
@@ -159,3 +166,17 @@ resource mapsRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = [
     }
   }
 ]
+
+// ---------------------------------------------------------------------------
+// AcrPull on the Container Registry — Container App ONLY (workers are zipped,
+// not containerised, so they don't pull from ACR).
+// ---------------------------------------------------------------------------
+resource acrPullRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  scope: containerRegistry
+  name: guid(containerRegistry.id, containerAppPrincipalId, acrPullRoleId)
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', acrPullRoleId)
+    principalId: containerAppPrincipalId
+    principalType: 'ServicePrincipal'
+  }
+}

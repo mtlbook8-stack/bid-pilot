@@ -1,0 +1,27 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "namePrefix": {
+      "value": "bidpilot"
+    },
+    "environmentName": {
+      "value": "dev"
+    },
+    "entraClientId": {
+      "value": "00000000-0000-0000-0000-000000000000"
+    },
+    "entraTenantId": {
+      "value": "c40c1d20-61e0-4cb1-8e3e-a2d533cdd8ed"
+    },
+    "entraClientSecret": {
+      "value": ""
+    },
+    "apiContainerImage": {
+      "value": "mcr.microsoft.com/azuredocs/containerapps-helloworld:latest"
+    },
+    "frontendUrl": {
+      "value": ""
+    }
+  }
+}

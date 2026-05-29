@@ -22,6 +22,9 @@ param logAnalyticsWorkspaceId string
 @description('Container image for the API. Defaults to the hello-world placeholder so the env deploys before the real image exists; override with the real image in CD.')
 param containerImage string = 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
 
+@description('Login server of the Azure Container Registry hosting the API image (e.g. bidpilotprodacr.azurecr.io). Empty means pull from a public registry.')
+param containerRegistryLoginServer string = ''
+
 @description('Port the API listens on inside the container.')
 param targetPort int = 8000
 
@@ -68,6 +71,9 @@ param entraClientId string = ''
 @description('Entra ID tenant id.')
 param entraTenantId string = subscription().tenantId
 
+@description('Public origin of the deployed frontend (e.g. https://app.bidpilot.com). Used by the API for CORS. Empty means only the local Vite dev origins are allowed.')
+param frontendUrl string = ''
+
 // Reference the existing workspace (created in monitoring.bicep) by id so we can
 // read its customerId and shared key without passing them in as params.
 resource logAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2023-09-01' existing = {
@@ -101,6 +107,16 @@ resource apiApp 'Microsoft.App/containerApps@2024-03-01' = {
   properties: {
     managedEnvironmentId: managedEnvironment.id
     configuration: {
+      // Only configure ACR auth when the image is actually pulled from our ACR.
+      // First-time deploy uses the public MCR hello-world placeholder; wiring ACR
+      // registries here would force credential validation against an empty registry
+      // before AcrPull RBAC has propagated, causing "Operation expired".
+      registries: (empty(containerRegistryLoginServer) || !contains(containerImage, containerRegistryLoginServer)) ? [] : [
+        {
+          server: containerRegistryLoginServer
+          identity: 'system'
+        }
+      ]
       ingress: {
         external: true
         targetPort: targetPort
@@ -138,6 +154,7 @@ resource apiApp 'Microsoft.App/containerApps@2024-03-01' = {
             { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: appInsightsConnectionString }
             { name: 'BIDPILOT_ENTRA_CLIENT_ID', value: entraClientId }
             { name: 'BIDPILOT_ENTRA_TENANT_ID', value: entraTenantId }
+            { name: 'BIDPILOT_FRONTEND_URL', value: frontendUrl }
           ]
         }
       ]

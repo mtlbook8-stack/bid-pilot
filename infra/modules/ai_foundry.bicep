@@ -27,6 +27,22 @@ param claudeDeploymentName string = 'claude-sonnet-4-6'
 @description('GPT model deployment name as referenced by prompt configs.')
 param gptDeploymentName string = 'gpt-5'
 
+// --- Anthropic model provider data ---
+// Azure requires these legal/onboarding fields when deploying partner Anthropic
+// models (Claude). They are passed verbatim into modelProviderData on the
+// Claude deployment resource. Defaults are placeholders — override via Bicep
+// parameters in non-trivial environments.
+@description('Legal organization name registered to consume Anthropic models on Azure.')
+param anthropicOrganizationName string = 'BidPilot'
+
+@description('Industry the deploying organization operates in (e.g. Technology, Construction, Financial Services).')
+param anthropicIndustry string = 'Technology'
+
+@description('ISO 3166-1 alpha-2 country code for the deploying organization (e.g. US, GB).')
+@minLength(2)
+@maxLength(2)
+param anthropicCountryCode string = 'US'
+
 resource aiServices 'Microsoft.CognitiveServices/accounts@2024-10-01' = {
   name: aiServicesName
   location: location
@@ -54,39 +70,31 @@ resource aiServices 'Microsoft.CognitiveServices/accounts@2024-10-01' = {
 // model name from the doc with publisher format 'Anthropic'. Adjust
 // `format`/`version` to match what `az cognitiveservices account list-models`
 // returns for the target region if deployment fails.
-resource claudeDeployment 'Microsoft.CognitiveServices/accounts/deployments@2024-10-01' = {
-  parent: aiServices
-  name: claudeDeploymentName
-  sku: {
-    name: 'GlobalStandard'
-    capacity: 1
-  }
-  properties: {
-    model: {
-      format: 'Anthropic'
-      name: 'claude-sonnet-4-6'
-    }
-    versionUpgradeOption: 'OnceNewDefaultVersionAvailable'
-  }
-}
+// Claude Sonnet deployment intentionally omitted from this Bicep.
+// Anthropic partner models require interactive onboarding (industry / orgName /
+// countryCode) that the ARM control plane only honors via the AI Foundry portal
+// or the AI Foundry SDK. After the infra deploy, add the Claude deployment via:
+//   Portal: AI Foundry → this account → Models + endpoints → Deploy model → Claude Sonnet 4.6
+// or:
+//   az cognitiveservices account deployment create \
+//     -n <aiAccountName> -g <rg> --deployment-name claude-sonnet-4-6 \
+//     --model-name claude-sonnet-4-6 --model-version 1 --model-format Anthropic \
+//     --sku-name GlobalStandard --sku-capacity 50
+// (CLI succeeds for follow-up deployments once the account has been onboarded.)
 
-// GPT-5 deployment. Standard OpenAI-format deployment. Deploy serially after the
-// Claude one — the control plane rejects concurrent deployment writes on a single
-// account.
+// GPT-5 deployment. Standard OpenAI-format deployment.
 resource gptDeployment 'Microsoft.CognitiveServices/accounts/deployments@2024-10-01' = {
   parent: aiServices
   name: gptDeploymentName
-  dependsOn: [
-    claudeDeployment
-  ]
   sku: {
     name: 'GlobalStandard'
-    capacity: 1
+    capacity: 30
   }
   properties: {
     model: {
       format: 'OpenAI'
       name: 'gpt-5'
+      version: '2025-08-07'
     }
     versionUpgradeOption: 'OnceNewDefaultVersionAvailable'
   }
