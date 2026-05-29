@@ -51,10 +51,10 @@ export function AllBidsPage() {
       }
       if (!term) return true;
       return (
-        (bid.vendor_name ?? "").toLowerCase().includes(term) ||
-        bid.email_subject.toLowerCase().includes(term) ||
-        (bid.trade_category ?? "").toLowerCase().includes(term) ||
-        (bid.scope_summary ?? "").toLowerCase().includes(term)
+        (bid.vendorName ?? "").toLowerCase().includes(term) ||
+        bid.emailSubject.toLowerCase().includes(term) ||
+        (bid.tradeCategory ?? "").toLowerCase().includes(term) ||
+        (bid.scopeSummary ?? "").toLowerCase().includes(term)
       );
     });
   }, [query.data, search, status]);

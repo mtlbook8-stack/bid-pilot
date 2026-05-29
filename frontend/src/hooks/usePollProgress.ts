@@ -23,7 +23,7 @@ export interface PollProgress {
   /** Vendors of bids saved during this run (from `bid_saved`). */
   savedVendors: string[];
   /** Terminal counts once `completed` arrives. */
-  result: { bids_created: number; rejected: number } | null;
+  result: { bidsCreated: number; rejected: number } | null;
   /** A user-safe error message if the stream failed. */
   error: string | null;
 }
@@ -63,7 +63,7 @@ export function usePollProgress() {
           return {
             ...prev,
             running: false,
-            result: { bids_created: evt.bids_created, rejected: evt.rejected },
+            result: { bidsCreated: evt.bids_created, rejected: evt.rejected },
           };
         case "error":
           return { ...prev, running: false, error: evt.message };

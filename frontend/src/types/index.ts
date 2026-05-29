@@ -2,12 +2,18 @@
  * TypeScript mirrors of the Python domain models in src/core/models/*.py and
  * the enums in src/core/enums.py.
  *
- * Field names are intentionally snake_case: the FastAPI layer serializes the
- * Pydantic models with `model_dump()` (default field names), so the JSON over
- * the wire is snake_case. Keeping the TS shapes identical means no mapping
- * layer between the API client and components. The agent output JSON shapes
- * (build doc section 7) flow straight into ComparisonTable / chat responses,
- * so those mirror the documented agent contracts too.
+ * Field names are camelCase to match the real API contract: every persisted
+ * domain model inherits CamelModel (src/core/models/base.py), which serializes
+ * with a camelCase alias generator, and FastAPI emits responses `by_alias=True`.
+ * So the JSON over the wire is camelCase and the TS shapes mirror it 1:1 — no
+ * mapping layer between the API client and components.
+ *
+ * Two deliberate exceptions stay snake_case because they are NOT CamelModels —
+ * they are raw LLM-parsed JSON dicts returned straight through the API:
+ *   - DashboardAnswer  (DashboardAnalyst agent output, section 7 Agent 12)
+ *   - SessionSummary   (SessionSummarizer agent output, section 7 Agent 11)
+ * The manual-poll SSE progress events (section 8.1) are likewise plain dicts
+ * emitted with snake_case keys by the orchestrator.
  */
 
 // ---------------------------------------------------------------------------
@@ -80,39 +86,39 @@ export type Severity = "high" | "medium" | "low";
 // ---------------------------------------------------------------------------
 
 export interface AgentResult {
-  agent_name: string;
+  agentName: string;
   confidence: number;
   reasoning: string;
-  raw_output: Record<string, unknown>;
-  created_at: string;
+  rawOutput: Record<string, unknown>;
+  createdAt: string;
 }
 
 export interface IngestedBid {
   id: string;
-  message_id: string;
-  linked_account_id: string;
-  sender_email: string;
-  email_subject: string;
-  received_at: string;
-  attachment_filename: string;
-  blob_path: string;
-  document_text: string;
-  table_count: number;
+  messageId: string;
+  linkedAccountId: string;
+  senderEmail: string;
+  emailSubject: string;
+  receivedAt: string;
+  attachmentFilename: string;
+  blobPath: string;
+  documentText: string;
+  tableCount: number;
   status: BidStatus;
-  retry_count: number;
-  is_bid: boolean | null;
-  matched_project_id: string | null;
-  address_from_bid: string | null;
-  normalized_address: string | null;
-  matched_job_id: string | null;
-  trade_category: TradeCategory | null;
-  secondary_trades: string[];
-  vendor_name: string | null;
-  scope_summary: string | null;
-  total_price: number | null;
-  agent_results: Record<string, AgentResult>;
-  created_at: string;
-  updated_at: string;
+  retryCount: number;
+  isBid: boolean | null;
+  matchedProjectId: string | null;
+  addressFromBid: string | null;
+  normalizedAddress: string | null;
+  matchedJobId: string | null;
+  tradeCategory: TradeCategory | null;
+  secondaryTrades: string[];
+  vendorName: string | null;
+  scopeSummary: string | null;
+  totalPrice: number | null;
+  agentResults: Record<string, AgentResult>;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -123,21 +129,21 @@ export interface ProjectSummary {
   id: string;
   name: string;
   address: string | null;
-  normalized_address: string | null;
-  client_name: string | null;
-  client_contact: string | null;
-  created_at: string;
-  updated_at: string;
+  normalizedAddress: string | null;
+  clientName: string | null;
+  clientContact: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface JobSummary {
   id: string;
-  project_id: string;
-  trade_category: TradeCategory;
-  job_name: string;
-  bid_ids: string[];
-  created_at: string;
-  updated_at: string;
+  projectId: string;
+  tradeCategory: TradeCategory;
+  jobName: string;
+  bidIds: string[];
+  createdAt: string;
+  updatedAt: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -145,110 +151,110 @@ export interface JobSummary {
 // ---------------------------------------------------------------------------
 
 export interface CostCell {
-  bid_id: string;
-  vendor_name: string;
+  bidId: string;
+  vendorName: string;
   value: number | null;
-  original_text: string;
-  is_lowest: boolean;
+  originalText: string;
+  isLowest: boolean;
   flags: string[];
 }
 
 export interface CostRow {
-  row_id: string;
+  rowId: string;
   label: string;
-  normalized_unit: string;
+  normalizedUnit: string;
   cells: CostCell[];
 }
 
 export interface VendorTotal {
-  bid_id: string;
-  vendor_name: string;
-  total_price: number;
-  items_included: number;
-  items_missing: number;
-  scope_caveats: string[];
+  bidId: string;
+  vendorName: string;
+  totalPrice: number;
+  itemsIncluded: number;
+  itemsMissing: number;
+  scopeCaveats: string[];
 }
 
 export interface CostOutlier {
-  row_label: string;
-  bid_id: string;
-  deviation_percentage: number;
+  rowLabel: string;
+  bidId: string;
+  deviationPercentage: number;
   direction: "above" | "below";
 }
 
 export interface CostAnalysis {
-  lowest_total_bid_id: string | null;
-  highest_total_bid_id: string | null;
-  spread_percentage: number;
-  significant_outliers: CostOutlier[];
+  lowestTotalBidId: string | null;
+  highestTotalBidId: string | null;
+  spreadPercentage: number;
+  significantOutliers: CostOutlier[];
 }
 
 export interface FeatureCell {
-  bid_id: string;
-  vendor_name: string;
+  bidId: string;
+  vendorName: string;
   value: string;
   sentiment: Sentiment;
-  source_quote: string;
+  sourceQuote: string;
 }
 
 export interface FeatureRow {
-  row_id: string;
+  rowId: string;
   category: string;
   label: string;
-  importance_rank: number;
+  importanceRank: number;
   cells: FeatureCell[];
 }
 
 export interface RedFlag {
-  bid_id: string;
-  vendor_name: string;
+  bidId: string;
+  vendorName: string;
   issue: string;
   severity: Severity;
 }
 
 export interface ComparisonTable {
-  cost_rows: CostRow[];
+  costRows: CostRow[];
   totals: VendorTotal[];
-  cost_analysis: CostAnalysis;
-  feature_rows: FeatureRow[];
-  red_flags: RedFlag[];
-  feature_summary: string;
+  costAnalysis: CostAnalysis;
+  featureRows: FeatureRow[];
+  redFlags: RedFlag[];
+  featureSummary: string;
 }
 
 export interface ChatMessage {
   role: ChatRole;
   content: string;
-  handled_by: string | null;
-  created_at: string;
+  handledBy: string | null;
+  createdAt: string;
 }
 
 export interface CompactedContext {
-  decision_status: DecisionStatus;
-  leading_vendor: string | null;
+  decisionStatus: DecisionStatus;
+  leadingVendor: string | null;
   reasoning: string | null;
   conclusions: Array<Record<string, unknown>>;
-  table_edits: Array<Record<string, unknown>>;
-  user_preferences: string[];
-  open_threads: string[];
-  data_corrections: string[];
-  compressed_from_message_count: number;
+  tableEdits: Array<Record<string, unknown>>;
+  userPreferences: string[];
+  openThreads: string[];
+  dataCorrections: string[];
+  compressedFromMessageCount: number;
 }
 
 export interface ComparisonSession {
   id: string;
-  project_id: string;
-  job_id: string;
-  project_name: string;
-  job_name: string;
-  trade_category: string;
-  bid_ids: string[];
-  vendor_names: string[];
+  projectId: string;
+  jobId: string;
+  projectName: string;
+  jobName: string;
+  tradeCategory: string;
+  bidIds: string[];
+  vendorNames: string[];
   phase: ComparisonPhase;
   table: ComparisonTable | null;
-  conversation_history: ChatMessage[];
-  compacted_context: CompactedContext | null;
-  created_at: string;
-  updated_at: string;
+  conversationHistory: ChatMessage[];
+  compactedContext: CompactedContext | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -257,17 +263,22 @@ export interface ComparisonSession {
 
 export interface Correction {
   id: string;
-  bid_id: string;
-  correction_type: CorrectionType;
-  agent_name: string;
-  original_value: Record<string, unknown>;
-  corrected_value: string;
+  bidId: string;
+  correctionType: CorrectionType;
+  agentName: string;
+  originalValue: Record<string, unknown>;
+  correctedValue: string;
   reason: string;
-  created_at: string;
+  createdAt: string;
 }
 
+/**
+ * Body for a correction (corrections_router CorrectionRequest). The backend
+ * accepts both casings (populate_by_name) but the alias is camelCase, so we
+ * send camelCase for consistency with the wire contract.
+ */
 export interface CorrectionRequest {
-  corrected_value: string;
+  correctedValue: string;
   reason?: string;
 }
 
@@ -277,14 +288,14 @@ export interface CorrectionRequest {
 
 export interface RejectedEmailMetadata {
   id: string;
-  message_id: string;
-  linked_account_id: string;
-  sender_email: string;
+  messageId: string;
+  linkedAccountId: string;
+  senderEmail: string;
   subject: string;
-  received_at: string;
-  rejection_reason: RejectionCategory;
-  agent_confidence: number;
-  created_at: string;
+  receivedAt: string;
+  rejectionReason: RejectionCategory;
+  agentConfidence: number;
+  createdAt: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -293,35 +304,48 @@ export interface RejectedEmailMetadata {
 
 export interface LinkedAccount {
   id: string;
-  user_id: string;
-  email_address: string;
-  token_secret_name: string;
-  webhook_subscription_id: string | null;
-  webhook_expires_at: string | null;
-  last_processed_at: string | null;
-  is_active: boolean;
-  last_health_check_at: string | null;
-  last_health_ok: boolean | null;
-  created_at: string;
-  updated_at: string;
+  userId: string;
+  emailAddress: string;
+  tokenSecretName: string;
+  webhookSubscriptionId: string | null;
+  webhookExpiresAt: string | null;
+  lastProcessedAt: string | null;
+  isActive: boolean;
+  lastHealthCheckAt: string | null;
+  lastHealthOk: boolean | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // ---------------------------------------------------------------------------
-// Dashboard / stats (dashboard_service.py + DashboardAnalyst agent output)
+// Dashboard stats (dashboard_service.get_stats — explicit camelCase dict)
 // ---------------------------------------------------------------------------
 
 export interface DashboardStats {
-  total_projects: number;
-  total_bids: number;
-  total_jobs: number;
-  bids_this_week: number;
-  unmatched_bids: number;
-  needs_review: number;
-  rejected_count: number;
-  active_sessions: number;
-  bids_by_trade: Array<{ trade: string; count: number }>;
-  recent_bids: IngestedBid[];
+  totalBids: number;
+  bidsByStatus: Record<string, number>;
+  totalProjects: number;
+  totalJobs: number;
+  totalSessions: number;
+  totalRejected: number;
+  needsReview: number;
+  recentBids: DashboardRecentBid[];
 }
+
+/** Reduced bid shape embedded in DashboardStats.recentBids (camelCase dict). */
+export interface DashboardRecentBid {
+  id: string;
+  vendorName: string | null;
+  subject: string;
+  status: BidStatus;
+  tradeCategory: TradeCategory | null;
+  totalPrice: number | null;
+  createdAt: string;
+}
+
+// ---------------------------------------------------------------------------
+// DashboardAnalyst agent output (section 7 Agent 12) — raw LLM JSON, snake_case
+// ---------------------------------------------------------------------------
 
 export type VisualizationHint =
   | "bar_chart"
@@ -339,7 +363,7 @@ export interface DashboardAnswer {
 }
 
 // ---------------------------------------------------------------------------
-// Session summary (SessionSummarizer agent output, section 7 Agent 11)
+// SessionSummarizer agent output (section 7 Agent 11) — raw LLM JSON, snake_case
 // ---------------------------------------------------------------------------
 
 export interface SessionSummary {
@@ -355,25 +379,34 @@ export interface SessionSummary {
 }
 
 // ---------------------------------------------------------------------------
-// SSE event payloads (section 8.1 manual poll, 8.3 comparison chat streaming)
+// SSE event payloads
 // ---------------------------------------------------------------------------
 
+/**
+ * Manual poll progress events (build doc 8.1). The orchestrator emits these as
+ * plain dicts with snake_case keys (email_ingestion_orchestrator.py), so they
+ * are NOT camelCased. An `error` frame carries the AppError envelope
+ * (`message` + `error_id`).
+ */
 export type PollEvent =
   | { event: "started"; account: string }
   | { event: "emails_found"; count: number }
   | { event: "processing"; email: string; index: number; total: number }
   | { event: "bid_saved"; bid_id: string; vendor: string }
   | { event: "completed"; bids_created: number; rejected: number }
-  | { event: "error"; message: string };
+  | { event: "error"; message: string; error_id?: string };
 
 /**
- * Chat stream events. The orchestrator streams assistant text in deltas, can
- * push an updated table mid-stream, and signals which specialist handled the
- * turn via `handled_by` (build doc 8.3).
+ * Comparison chat stream events (build doc 8.3, comparison_service.chat). The
+ * service emits exactly these frames as JSON dicts:
+ *   - `routed`  : the orchestrator picked a specialist (`agent`).
+ *   - `message` : the full assistant reply (`content`) + which agent produced
+ *                 it (`handledBy`). There is no token-delta streaming.
+ *   - `done`    : terminal success, no fields.
+ *   - `error`   : AppError envelope (`message` + `error_id`).
  */
 export type ChatStreamEvent =
-  | { event: "routed"; handled_by: string }
-  | { event: "delta"; text: string }
-  | { event: "table_update"; table: ComparisonTable }
-  | { event: "done"; handled_by: string | null }
-  | { event: "error"; message: string };
+  | { event: "routed"; agent: string }
+  | { event: "message"; content: string; handledBy: string | null }
+  | { event: "done" }
+  | { event: "error"; message: string; error_id?: string };

@@ -67,10 +67,10 @@ export function ProjectsPage() {
                   )}
 
                   <div className="mt-auto flex items-center justify-between pt-1 text-xs text-muted-foreground">
-                    {project.client_name && (
-                      <span className="truncate">{project.client_name}</span>
+                    {project.clientName && (
+                      <span className="truncate">{project.clientName}</span>
                     )}
-                    <span>{formatDate(project.created_at)}</span>
+                    <span>{formatDate(project.createdAt)}</span>
                   </div>
                 </CardContent>
               </Card>

@@ -29,7 +29,7 @@ export function FeatureRow({
   row: FeatureRowType;
   vendorOrder: string[];
 }) {
-  const byBid = new Map(row.cells.map((c) => [c.bid_id, c]));
+  const byBid = new Map(row.cells.map((c) => [c.bidId, c]));
 
   return (
     <TableRow className="align-top">
@@ -62,7 +62,7 @@ export function FeatureRow({
                 )}
                 aria-hidden
               />
-              <span title={cell.source_quote || undefined}>
+              <span title={cell.sourceQuote || undefined}>
                 {cell.sentiment === "not_specified" && !cell.value
                   ? "Not specified"
                   : cell.value}

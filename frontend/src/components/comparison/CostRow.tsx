@@ -5,13 +5,13 @@ import type { CostRow as CostRowType } from "@/types";
 /**
  * CostRow — one line item across all vendors in the cost comparison table.
  *
- * The cheapest cell on the row (cell.is_lowest) is highlighted green so the
+ * The cheapest cell on the row (cell.isLowest) is highlighted green so the
  * lowest price jumps out at a glance — the single most important read in the
  * whole comparison. Per-cell flags (e.g. lump_sum_comparison_limited) render as
  * a small caveat marker, and missing values show an em dash rather than $0 so a
  * vendor who simply didn't bid an item isn't confused with one who bid zero.
  *
- * `outlierBidIds` (computed by ComparisonTable from cost_analysis) marks cells
+ * `outlierBidIds` (computed by ComparisonTable from costAnalysis) marks cells
  * the analysis flagged as significant deviations with an amber ring.
  */
 export function CostRow({
@@ -26,16 +26,16 @@ export function CostRow({
   outlierBidIds: Set<string>;
 }) {
   // Index cells by bid id so we render columns in the table's canonical order.
-  const byBid = new Map(row.cells.map((c) => [c.bid_id, c]));
+  const byBid = new Map(row.cells.map((c) => [c.bidId, c]));
 
   return (
     <TableRow>
       <TableCell className="sticky left-0 z-10 bg-card font-medium">
         <div className="flex flex-col">
           <span>{row.label}</span>
-          {row.normalized_unit && (
+          {row.normalizedUnit && (
             <span className="text-xs font-normal text-muted-foreground">
-              per {row.normalized_unit}
+              per {row.normalizedUnit}
             </span>
           )}
         </div>
@@ -57,7 +57,7 @@ export function CostRow({
             key={bidId}
             className={cn(
               "text-right tabular-nums",
-              cell.is_lowest && hasValue && "bg-emerald-50",
+              cell.isLowest && hasValue && "bg-emerald-50",
               isOutlier && "ring-1 ring-inset ring-amber-300"
             )}
           >
@@ -65,9 +65,9 @@ export function CostRow({
               <span
                 className={cn(
                   "font-medium",
-                  cell.is_lowest && hasValue && "text-emerald-700"
+                  cell.isLowest && hasValue && "text-emerald-700"
                 )}
-                title={cell.original_text || undefined}
+                title={cell.originalText || undefined}
               >
                 {hasValue ? formatCurrency(cell.value) : "—"}
               </span>

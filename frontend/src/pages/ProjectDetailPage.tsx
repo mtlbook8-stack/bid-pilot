@@ -49,9 +49,9 @@ export function ProjectDetailPage() {
       title={project?.name ?? "Project"}
       description={project?.address ?? undefined}
     >
-      {project?.client_name && (
+      {project?.clientName && (
         <p className="-mt-4 mb-4 flex items-center gap-1.5 text-sm text-muted-foreground">
-          <MapPin className="size-3.5" /> Client: {project.client_name}
+          <MapPin className="size-3.5" /> Client: {project.clientName}
         </p>
       )}
 
@@ -87,7 +87,7 @@ function JobRow({ job, projectId }: { job: JobSummary; projectId: string }) {
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
 
-  const bidCount = job.bid_ids.length;
+  const bidCount = job.bidIds.length;
   const canCompare = bidCount >= 2;
 
   const start = useMutation({
@@ -118,10 +118,10 @@ function JobRow({ job, projectId }: { job: JobSummary; projectId: string }) {
             <span className="flex size-8 items-center justify-center rounded-md bg-muted text-muted-foreground">
               <Hammer className="size-4" />
             </span>
-            <h3 className="truncate font-medium">{job.job_name}</h3>
+            <h3 className="truncate font-medium">{job.jobName}</h3>
           </div>
           <div className="mt-1.5 flex items-center gap-2">
-            <Badge variant="outline">{job.trade_category}</Badge>
+            <Badge variant="outline">{job.tradeCategory}</Badge>
             <span className="text-sm text-muted-foreground">
               {bidCount} {bidCount === 1 ? "bid" : "bids"}
             </span>

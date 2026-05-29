@@ -30,7 +30,10 @@ export class ApiError extends Error {
   }
 }
 
-/** Shape of the backend error body (mirrors AppError.user_message). */
+/**
+ * Shape of the backend error body (mirrors AppError.user_message). This is a
+ * plain dict, not a CamelModel, so `error_id` stays snake_case on the wire.
+ */
 interface ApiErrorBody {
   message?: string;
   error_id?: string;
@@ -101,12 +104,12 @@ export class ApiClient {
    * Begin linking a Microsoft mailbox. Returns the Microsoft OAuth consent URL
    * the browser should navigate to; the backend handles the callback.
    */
-  getEmailLinkUrl(): Promise<{ authorization_url: string }> {
+  getEmailLinkUrl(): Promise<{ authorizeUrl: string; state: string }> {
     return this.request("/auth/link-email");
   }
 
   /** Current authenticated user profile (from the validated Entra token). */
-  getCurrentUser(): Promise<{ user_id: string; email: string; name: string }> {
+  getCurrentUser(): Promise<{ userId: string; email: string }> {
     return this.request("/auth/me");
   }
 
@@ -114,13 +117,13 @@ export class ApiClient {
 
   /** List bids, optionally filtered by project, job, or status. */
   listBids(params?: {
-    project_id?: string;
-    job_id?: string;
+    projectId?: string;
+    jobId?: string;
     status?: string;
   }): Promise<IngestedBid[]> {
     const qs = new URLSearchParams();
-    if (params?.project_id) qs.set("project_id", params.project_id);
-    if (params?.job_id) qs.set("job_id", params.job_id);
+    if (params?.projectId) qs.set("projectId", params.projectId);
+    if (params?.jobId) qs.set("jobId", params.jobId);
     if (params?.status) qs.set("status", params.status);
     const suffix = qs.toString() ? `?${qs}` : "";
     return this.request(`/bids${suffix}`);
@@ -241,8 +244,11 @@ export class ApiClient {
     return this.request("/rejected");
   }
 
-  /** Restore a wrongly-rejected email — re-ingests it (build doc 8.5). */
-  restoreRejected(id: string): Promise<{ bid_id: string }> {
+  /**
+   * Restore a wrongly-rejected email — re-ingests it (build doc 8.5). The
+   * backend returns the freshly-created IngestedBid.
+   */
+  restoreRejected(id: string): Promise<IngestedBid> {
     return this.request(`/rejected/${encodeURIComponent(id)}/restore`, {
       method: "POST",
     });

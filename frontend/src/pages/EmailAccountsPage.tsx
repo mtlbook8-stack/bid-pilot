@@ -44,7 +44,7 @@ export function EmailAccountsPage() {
     mutationFn: () => apiClient.getEmailLinkUrl(),
     onSuccess: (res) => {
       // Hand off to Microsoft's consent screen; backend handles the callback.
-      window.location.href = res.authorization_url;
+      window.location.href = res.authorizeUrl;
     },
   });
 
@@ -140,7 +140,7 @@ function AccountCard({ account }: { account: LinkedAccount }) {
                 <Mail className="size-4" />
               </span>
               <span className="truncate font-medium">
-                {account.email_address}
+                {account.emailAddress}
               </span>
               <Badge variant={health.variant} className="gap-1">
                 <health.icon className="size-3" />
@@ -148,9 +148,9 @@ function AccountCard({ account }: { account: LinkedAccount }) {
               </Badge>
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
-              Last polled {formatDate(account.last_processed_at)}
-              {account.last_health_check_at &&
-                ` · checked ${formatDate(account.last_health_check_at)}`}
+              Last polled {formatDate(account.lastProcessedAt)}
+              {account.lastHealthCheckAt &&
+                ` · checked ${formatDate(account.lastHealthCheckAt)}`}
             </p>
           </div>
 
@@ -185,7 +185,7 @@ function AccountCard({ account }: { account: LinkedAccount }) {
 
       <Dialog open={confirmUnlink} onOpenChange={setConfirmUnlink}>
         <DialogHeader>
-          <DialogTitle>Unlink {account.email_address}?</DialogTitle>
+          <DialogTitle>Unlink {account.emailAddress}?</DialogTitle>
           <DialogDescription>
             BidPilot will stop watching this mailbox for new bids. Existing bids
             are kept. You can re-link it later.
@@ -274,8 +274,8 @@ function PollProgressPanel({
 
           {progress.result && (
             <p className="mt-2 text-xs text-muted-foreground">
-              Created {progress.result.bids_created} bid
-              {progress.result.bids_created === 1 ? "" : "s"} ·{" "}
+              Created {progress.result.bidsCreated} bid
+              {progress.result.bidsCreated === 1 ? "" : "s"} ·{" "}
               {progress.result.rejected} rejected.
             </p>
           )}
@@ -291,9 +291,9 @@ function healthMeta(account: LinkedAccount): {
   variant: "success" | "warning" | "muted";
   icon: typeof CheckCircle2;
 } {
-  if (!account.is_active)
+  if (!account.isActive)
     return { label: "Inactive", variant: "muted", icon: CircleDot };
-  if (account.last_health_ok === false)
+  if (account.lastHealthOk === false)
     return { label: "Needs attention", variant: "warning", icon: AlertCircle };
   return { label: "Healthy", variant: "success", icon: CheckCircle2 };
 }

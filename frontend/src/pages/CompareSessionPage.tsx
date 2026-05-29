@@ -71,16 +71,16 @@ export function CompareSessionPage() {
           to={`/projects/${encodeURIComponent(projectId)}`}
           className="hover:text-foreground"
         >
-          ← {session.project_name}
+          ← {session.projectName}
         </Link>
       }
-      title={session.job_name}
+      title={session.jobName}
       description={
         <span className="flex flex-wrap items-center gap-2">
-          <Badge variant="outline">{session.trade_category}</Badge>
-          <span>{session.vendor_names.length} vendors</span>
+          <Badge variant="outline">{session.tradeCategory}</Badge>
+          <span>{session.vendorNames.length} vendors</span>
           <span className="text-muted-foreground">·</span>
-          <span className="truncate">{session.vendor_names.join(", ")}</span>
+          <span className="truncate">{session.vendorNames.join(", ")}</span>
         </span>
       }
       actions={

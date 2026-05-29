@@ -1,4 +1,5 @@
 import { FormEvent, useState } from "react";
+import { Link } from "react-router-dom";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   FolderKanban,
@@ -15,10 +16,15 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { LoadingSkeleton } from "@/components/common/LoadingSkeleton";
-import { BidCard } from "@/components/bids/BidCard";
+import { BidStatusBadge } from "@/components/bids/BidStatusBadge";
 import { EmptyState } from "@/components/common/EmptyState";
 import { apiClient } from "@/api/client";
-import type { DashboardAnswer, DashboardStats } from "@/types";
+import { formatCurrency } from "@/lib/utils";
+import type {
+  DashboardAnswer,
+  DashboardRecentBid,
+  DashboardStats,
+} from "@/types";
 
 /**
  * DashboardPage — the daily-glance view (build doc workflow step 3). Shows the
@@ -51,20 +57,18 @@ export function DashboardPage() {
         ) : (
           <>
             <StatTiles stats={statsQuery.data} />
-            <TradeBreakdown
-              data={statsQuery.data.bids_by_trade}
-            />
+            <StatusBreakdown data={statsQuery.data.bidsByStatus} />
             <div>
               <h2 className="mb-3 text-base font-semibold">Recent bids</h2>
-              {statsQuery.data.recent_bids.length === 0 ? (
+              {statsQuery.data.recentBids.length === 0 ? (
                 <EmptyState
                   title="No bids yet"
                   description="Bids will appear here as they arrive by email."
                 />
               ) : (
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  {statsQuery.data.recent_bids.map((bid) => (
-                    <BidCard key={bid.id} bid={bid} />
+                  {statsQuery.data.recentBids.map((bid) => (
+                    <RecentBidCard key={bid.id} bid={bid} />
                   ))}
                 </div>
               )}
@@ -78,14 +82,14 @@ export function DashboardPage() {
 
 function StatTiles({ stats }: { stats: DashboardStats }) {
   const tiles = [
-    { label: "Projects", value: stats.total_projects, icon: FolderKanban },
-    { label: "Total bids", value: stats.total_bids, icon: FileStack },
-    { label: "Bids this week", value: stats.bids_this_week, icon: Inbox },
+    { label: "Projects", value: stats.totalProjects, icon: FolderKanban },
+    { label: "Total bids", value: stats.totalBids, icon: FileStack },
+    { label: "Comparisons", value: stats.totalSessions, icon: Inbox },
     {
       label: "Needs review",
-      value: stats.needs_review,
+      value: stats.needsReview,
       icon: AlertCircle,
-      emphasis: stats.needs_review > 0,
+      emphasis: stats.needsReview > 0,
     },
   ];
   return (
@@ -113,35 +117,63 @@ function StatTiles({ stats }: { stats: DashboardStats }) {
   );
 }
 
-function TradeBreakdown({
-  data,
-}: {
-  data: Array<{ trade: string; count: number }>;
-}) {
-  if (data.length === 0) return null;
-  const max = Math.max(...data.map((d) => d.count), 1);
+/** Bids broken down by pipeline status (stats.bidsByStatus, a status→count map). */
+function StatusBreakdown({ data }: { data: Record<string, number> }) {
+  const entries = Object.entries(data);
+  if (entries.length === 0) return null;
+  const max = Math.max(...entries.map(([, count]) => count), 1);
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="text-base">Bids by trade</CardTitle>
+        <CardTitle className="text-base">Bids by status</CardTitle>
       </CardHeader>
       <CardContent className="space-y-2">
-        {data.map((d) => (
-          <div key={d.trade} className="flex items-center gap-3">
-            <span className="w-40 shrink-0 truncate text-sm">{d.trade}</span>
+        {entries.map(([status, count]) => (
+          <div key={status} className="flex items-center gap-3">
+            <span className="w-40 shrink-0 truncate text-sm">{status}</span>
             <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
               <div
                 className="h-full rounded-full bg-primary"
-                style={{ width: `${(d.count / max) * 100}%` }}
+                style={{ width: `${(count / max) * 100}%` }}
               />
             </div>
             <span className="w-8 text-right text-sm tabular-nums text-muted-foreground">
-              {d.count}
+              {count}
             </span>
           </div>
         ))}
       </CardContent>
     </Card>
+  );
+}
+
+/** Compact card for the reduced recent-bid shape embedded in DashboardStats. */
+function RecentBidCard({ bid }: { bid: DashboardRecentBid }) {
+  return (
+    <Link
+      to={`/bids/${encodeURIComponent(bid.id)}`}
+      className="block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      <Card className="h-full transition-shadow hover:shadow-md">
+        <CardContent className="flex h-full flex-col gap-2 p-4">
+          <div className="flex items-start justify-between gap-2">
+            <span className="truncate font-medium">
+              {bid.vendorName ?? "Unknown vendor"}
+            </span>
+            <BidStatusBadge status={bid.status} />
+          </div>
+          <p className="truncate text-xs text-muted-foreground">{bid.subject}</p>
+          <div className="mt-auto flex items-center justify-between pt-1">
+            {bid.tradeCategory && (
+              <Badge variant="outline">{bid.tradeCategory}</Badge>
+            )}
+            <span className="text-sm font-semibold tabular-nums">
+              {formatCurrency(bid.totalPrice)}
+            </span>
+          </div>
+        </CardContent>
+      </Card>
+    </Link>
   );
 }
 

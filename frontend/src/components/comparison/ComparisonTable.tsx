@@ -44,14 +44,14 @@ const SEVERITY_META: Record<Severity, { label: string; cls: string }> = {
 export function ComparisonTable({ table }: { table: ComparisonTableType }) {
   // Canonical column order derived from totals (falls back to cost cells).
   const vendorOrder = useMemo(() => {
-    if (table.totals.length > 0) return table.totals.map((t) => t.bid_id);
+    if (table.totals.length > 0) return table.totals.map((t) => t.bidId);
     const seen = new Set<string>();
     const order: string[] = [];
-    for (const row of table.cost_rows) {
+    for (const row of table.costRows) {
       for (const cell of row.cells) {
-        if (!seen.has(cell.bid_id)) {
-          seen.add(cell.bid_id);
-          order.push(cell.bid_id);
+        if (!seen.has(cell.bidId)) {
+          seen.add(cell.bidId);
+          order.push(cell.bidId);
         }
       }
     }
@@ -61,10 +61,10 @@ export function ComparisonTable({ table }: { table: ComparisonTableType }) {
   // Vendor name lookup for column headers.
   const vendorNames = useMemo(() => {
     const map = new Map<string, string>();
-    for (const t of table.totals) map.set(t.bid_id, t.vendor_name);
-    for (const row of table.cost_rows) {
+    for (const t of table.totals) map.set(t.bidId, t.vendorName);
+    for (const row of table.costRows) {
       for (const cell of row.cells) {
-        if (!map.has(cell.bid_id)) map.set(cell.bid_id, cell.vendor_name);
+        if (!map.has(cell.bidId)) map.set(cell.bidId, cell.vendorName);
       }
     }
     return map;
@@ -73,7 +73,7 @@ export function ComparisonTable({ table }: { table: ComparisonTableType }) {
   // Group feature rows by category, ordered by the most important row in each.
   const featureGroups = useMemo(() => {
     const groups = new Map<string, FeatureRowType[]>();
-    for (const row of table.feature_rows) {
+    for (const row of table.featureRows) {
       const list = groups.get(row.category) ?? [];
       list.push(row);
       groups.set(row.category, list);
@@ -81,8 +81,8 @@ export function ComparisonTable({ table }: { table: ComparisonTableType }) {
     return [...groups.entries()]
       .map(([category, rows]) => ({
         category,
-        rows: [...rows].sort((a, b) => a.importance_rank - b.importance_rank),
-        rank: Math.min(...rows.map((r) => r.importance_rank)),
+        rows: [...rows].sort((a, b) => a.importanceRank - b.importanceRank),
+        rank: Math.min(...rows.map((r) => r.importanceRank)),
       }))
       .sort((a, b) => a.rank - b.rank);
   }, [table]);
@@ -90,16 +90,16 @@ export function ComparisonTable({ table }: { table: ComparisonTableType }) {
   // Outliers keyed by row label → set of bid ids, for CostRow highlighting.
   const outliersByRow = useMemo(() => {
     const map = new Map<string, Set<string>>();
-    for (const o of table.cost_analysis.significant_outliers) {
-      const set = map.get(o.row_label) ?? new Set<string>();
-      set.add(o.bid_id);
-      map.set(o.row_label, set);
+    for (const o of table.costAnalysis.significantOutliers) {
+      const set = map.get(o.rowLabel) ?? new Set<string>();
+      set.add(o.bidId);
+      map.set(o.rowLabel, set);
     }
     return map;
   }, [table]);
 
-  const hasCost = table.cost_rows.length > 0 || table.totals.length > 0;
-  const hasFeatures = table.feature_rows.length > 0;
+  const hasCost = table.costRows.length > 0 || table.totals.length > 0;
+  const hasFeatures = table.featureRows.length > 0;
 
   return (
     <div className="space-y-6">
@@ -126,9 +126,9 @@ export function ComparisonTable({ table }: { table: ComparisonTableType }) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {table.cost_rows.map((row) => (
+                {table.costRows.map((row) => (
                   <CostRow
-                    key={row.row_id}
+                    key={row.rowId}
                     row={row}
                     vendorOrder={vendorOrder}
                     outlierBidIds={
@@ -139,7 +139,7 @@ export function ComparisonTable({ table }: { table: ComparisonTableType }) {
                 <TotalsRow
                   totals={table.totals}
                   vendorOrder={vendorOrder}
-                  lowestId={table.cost_analysis.lowest_total_bid_id}
+                  lowestId={table.costAnalysis.lowestTotalBidId}
                 />
               </TableBody>
             </Table>
@@ -147,16 +147,16 @@ export function ComparisonTable({ table }: { table: ComparisonTableType }) {
         </section>
       )}
 
-      {table.red_flags.length > 0 && (
-        <RedFlagStrip flags={table.red_flags} />
+      {table.redFlags.length > 0 && (
+        <RedFlagStrip flags={table.redFlags} />
       )}
 
       {hasFeatures && (
         <section>
           <SectionHeading icon={ChevronRight} title="Feature comparison" />
-          {table.feature_summary && (
+          {table.featureSummary && (
             <p className="mb-3 text-sm text-muted-foreground">
-              {table.feature_summary}
+              {table.featureSummary}
             </p>
           )}
           <Card className="overflow-hidden">
@@ -220,9 +220,9 @@ function AnalysisStrip({
   table: ComparisonTableType;
   vendorNames: Map<string, string>;
 }) {
-  const { cost_analysis } = table;
-  const lowest = cost_analysis.lowest_total_bid_id;
-  const lowestTotal = table.totals.find((t) => t.bid_id === lowest);
+  const { costAnalysis } = table;
+  const lowest = costAnalysis.lowestTotalBidId;
+  const lowestTotal = table.totals.find((t) => t.bidId === lowest);
 
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -238,7 +238,7 @@ function AnalysisStrip({
             </p>
             {lowestTotal && (
               <p className="text-sm tabular-nums text-emerald-700">
-                {formatCurrency(lowestTotal.total_price)}
+                {formatCurrency(lowestTotal.totalPrice)}
               </p>
             )}
           </div>
@@ -252,7 +252,7 @@ function AnalysisStrip({
           <div>
             <p className="text-xs text-muted-foreground">Price spread</p>
             <p className="font-semibold tabular-nums">
-              {cost_analysis.spread_percentage.toFixed(1)}%
+              {costAnalysis.spreadPercentage.toFixed(1)}%
             </p>
             <p className="text-xs text-muted-foreground">
               low to high total
@@ -268,7 +268,7 @@ function AnalysisStrip({
           <div>
             <p className="text-xs text-muted-foreground">Outliers flagged</p>
             <p className="font-semibold tabular-nums">
-              {cost_analysis.significant_outliers.length}
+              {costAnalysis.significantOutliers.length}
             </p>
             <p className="text-xs text-muted-foreground">
               line items deviating &gt;30%
@@ -290,7 +290,7 @@ function TotalsRow({
   vendorOrder: string[];
   lowestId: string | null;
 }) {
-  const byBid = new Map(totals.map((t) => [t.bid_id, t]));
+  const byBid = new Map(totals.map((t) => [t.bidId, t]));
   return (
     <TableRow className="border-t-2 bg-muted/50 hover:bg-muted/50">
       <TableCell className="sticky left-0 z-10 bg-muted/50 font-semibold">
@@ -316,14 +316,14 @@ function TotalsRow({
                 )}
               >
                 {isLowest && <Trophy className="size-3.5" />}
-                {formatCurrency(total.total_price)}
+                {formatCurrency(total.totalPrice)}
               </span>
               <span className="text-xs text-muted-foreground">
-                {total.items_included} items
-                {total.items_missing > 0 &&
-                  ` · ${total.items_missing} missing`}
+                {total.itemsIncluded} items
+                {total.itemsMissing > 0 &&
+                  ` · ${total.itemsMissing} missing`}
               </span>
-              {total.scope_caveats.map((caveat, i) => (
+              {total.scopeCaveats.map((caveat, i) => (
                 <span
                   key={i}
                   className="text-right text-[11px] text-amber-600"
@@ -362,7 +362,7 @@ function FeatureGroup({
         </TableCell>
       </TableRow>
       {rows.map((row) => (
-        <FeatureRow key={row.row_id} row={row} vendorOrder={vendorOrder} />
+        <FeatureRow key={row.rowId} row={row} vendorOrder={vendorOrder} />
       ))}
     </>
   );
@@ -396,7 +396,7 @@ function RedFlagStrip({ flags }: { flags: RedFlag[] }) {
                 {meta.label}
               </Badge>
               <div>
-                <span className="font-medium">{flag.vendor_name}:</span>{" "}
+                <span className="font-medium">{flag.vendorName}:</span>{" "}
                 {flag.issue}
               </div>
             </div>

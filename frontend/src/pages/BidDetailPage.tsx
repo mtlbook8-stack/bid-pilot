@@ -65,8 +65,8 @@ export function BidDetailPage() {
           ← All bids
         </Link>
       }
-      title={bid.vendor_name ?? "Unknown vendor"}
-      description={bid.email_subject}
+      title={bid.vendorName ?? "Unknown vendor"}
+      description={bid.emailSubject}
       actions={<BidStatusBadge status={bid.status} />}
     >
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -76,7 +76,7 @@ export function BidDetailPage() {
             <CardTitle className="flex items-center gap-2 text-sm">
               <FileText className="size-4" />
               <span className="max-w-[220px] truncate">
-                {bid.attachment_filename}
+                {bid.attachmentFilename}
               </span>
             </CardTitle>
             <a
@@ -117,7 +117,7 @@ export function BidDetailPage() {
           <CorrectionsCard bid={bid} />
           <div>
             <h2 className="mb-3 text-base font-semibold">Agent decisions</h2>
-            <AgentResultPanel results={bid.agent_results} />
+            <AgentResultPanel results={bid.agentResults} />
           </div>
         </div>
       </div>
@@ -132,25 +132,25 @@ function BidFacts({ bid }: { bid: IngestedBid }) {
         <CardTitle className="text-base">Details</CardTitle>
       </CardHeader>
       <CardContent className="grid grid-cols-2 gap-3 text-sm">
-        <Fact label="Vendor" value={bid.vendor_name ?? "—"} icon={Building2} />
-        <Fact label="Total" value={formatCurrency(bid.total_price)} />
-        <Fact label="Trade" value={bid.trade_category ?? "—"} />
-        <Fact label="Sender" value={bid.sender_email} />
-        <Fact label="Received" value={formatDate(bid.received_at)} />
+        <Fact label="Vendor" value={bid.vendorName ?? "—"} icon={Building2} />
+        <Fact label="Total" value={formatCurrency(bid.totalPrice)} />
+        <Fact label="Trade" value={bid.tradeCategory ?? "—"} />
+        <Fact label="Sender" value={bid.senderEmail} />
+        <Fact label="Received" value={formatDate(bid.receivedAt)} />
         <Fact
           label="Address"
-          value={bid.address_from_bid ?? bid.normalized_address ?? "—"}
+          value={bid.addressFromBid ?? bid.normalizedAddress ?? "—"}
         />
-        {bid.scope_summary && (
+        {bid.scopeSummary && (
           <div className="col-span-2">
             <p className="text-xs text-muted-foreground">Scope</p>
-            <p>{bid.scope_summary}</p>
+            <p>{bid.scopeSummary}</p>
           </div>
         )}
-        {bid.secondary_trades.length > 0 && (
+        {bid.secondaryTrades.length > 0 && (
           <div className="col-span-2 flex flex-wrap items-center gap-1.5">
             <span className="text-xs text-muted-foreground">Also covers:</span>
-            {bid.secondary_trades.map((t) => (
+            {bid.secondaryTrades.map((t) => (
               <Badge key={t} variant="muted">
                 {t}
               </Badge>
@@ -194,22 +194,22 @@ function CorrectionsCard({ bid }: { bid: IngestedBid }) {
           bid={bid}
           type="trade"
           label="Trade category"
-          current={bid.trade_category ?? ""}
+          current={bid.tradeCategory ?? ""}
           placeholder="e.g. Plumbing"
         />
         <CorrectionField
           bid={bid}
           type="project"
           label="Project"
-          current={bid.matched_project_id ?? ""}
+          current={bid.matchedProjectId ?? ""}
           placeholder="Correct project id or name"
         />
         <CorrectionField
           bid={bid}
           type="validation"
           label="Is this a bid?"
-          current={bid.is_bid === false ? "Not a bid" : "Is a bid"}
-          placeholder="is_bid=true / is_bid=false"
+          current={bid.isBid === false ? "Not a bid" : "Is a bid"}
+          placeholder="isBid=true / isBid=false"
         />
       </CardContent>
     </Card>
@@ -237,7 +237,7 @@ function CorrectionField({
   const mutation = useMutation({
     mutationFn: () =>
       apiClient.submitCorrection(bid.id, type, {
-        corrected_value: value.trim(),
+        correctedValue: value.trim(),
         reason: reason.trim() || undefined,
       }),
     onSuccess: () => {

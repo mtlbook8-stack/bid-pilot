@@ -8,7 +8,7 @@ import type { ChatMessage as ChatMessageType } from "@/types";
  *
  * User turns align right with the primary colour; assistant turns align left
  * with a bot avatar and, crucially, a small badge naming which specialist agent
- * handled the reply (message.handled_by — e.g. CostComparator, FeatureAnalyst),
+ * handled the reply (message.handledBy — e.g. CostComparator, FeatureAnalyst),
  * so the user understands which expert answered (build doc 8.3). A streaming
  * assistant turn with no text yet shows an animated typing indicator.
  */
@@ -59,9 +59,9 @@ export function ChatMessageBubble({
             : "bg-muted text-foreground"
         )}
       >
-        {!isUser && message.handled_by && (
+        {!isUser && message.handledBy && (
           <Badge variant="secondary" className="mb-1.5 text-[10px]">
-            {agentLabel(message.handled_by)}
+            {agentLabel(message.handledBy)}
           </Badge>
         )}
         {isEmptyAssistant && streaming ? (

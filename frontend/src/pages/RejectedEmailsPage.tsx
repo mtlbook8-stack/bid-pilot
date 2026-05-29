@@ -110,18 +110,18 @@ function RejectedRow({
         {email.subject}
       </TableCell>
       <TableCell className="text-muted-foreground">
-        {email.sender_email}
+        {email.senderEmail}
       </TableCell>
       <TableCell>
         <Badge variant="muted">
-          {REASON_LABELS[email.rejection_reason] ?? email.rejection_reason}
+          {REASON_LABELS[email.rejectionReason] ?? email.rejectionReason}
         </Badge>
       </TableCell>
       <TableCell>
-        <ConfidenceBadge value={email.agent_confidence} showLabel={false} />
+        <ConfidenceBadge value={email.agentConfidence} showLabel={false} />
       </TableCell>
       <TableCell className="text-muted-foreground">
-        {formatDate(email.received_at)}
+        {formatDate(email.receivedAt)}
       </TableCell>
       <TableCell className="text-right">
         <Button

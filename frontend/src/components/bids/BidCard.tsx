@@ -24,28 +24,28 @@ export function BidCard({ bid }: { bid: IngestedBid }) {
               <div className="flex items-center gap-2">
                 <Building2 className="size-4 shrink-0 text-muted-foreground" />
                 <span className="truncate font-medium">
-                  {bid.vendor_name ?? "Unknown vendor"}
+                  {bid.vendorName ?? "Unknown vendor"}
                 </span>
               </div>
               <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                {bid.email_subject}
+                {bid.emailSubject}
               </p>
             </div>
             <BidStatusBadge status={bid.status} />
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            {bid.trade_category && (
-              <Badge variant="outline">{bid.trade_category}</Badge>
+            {bid.tradeCategory && (
+              <Badge variant="outline">{bid.tradeCategory}</Badge>
             )}
             <span className="text-lg font-semibold tabular-nums">
-              {formatCurrency(bid.total_price)}
+              {formatCurrency(bid.totalPrice)}
             </span>
           </div>
 
-          {bid.scope_summary && (
+          {bid.scopeSummary && (
             <p className="line-clamp-2 text-sm text-muted-foreground">
-              {bid.scope_summary}
+              {bid.scopeSummary}
             </p>
           )}
 
@@ -53,10 +53,10 @@ export function BidCard({ bid }: { bid: IngestedBid }) {
             <span className="flex items-center gap-1">
               <FileText className="size-3.5" />
               <span className="max-w-[160px] truncate">
-                {bid.attachment_filename}
+                {bid.attachmentFilename}
               </span>
             </span>
-            <span>{formatDate(bid.received_at)}</span>
+            <span>{formatDate(bid.receivedAt)}</span>
           </div>
         </CardContent>
       </Card>

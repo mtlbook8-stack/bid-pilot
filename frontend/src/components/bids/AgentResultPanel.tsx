@@ -5,7 +5,7 @@ import type { AgentResult } from "@/types";
 
 /**
  * AgentResultPanel — renders the per-agent decision trail attached to a bid
- * (bid.agent_results, keyed by agent name). Each agent's confidence, reasoning,
+ * (bid.agentResults, keyed by agent name). Each agent's confidence, reasoning,
  * and raw structured output are shown so a reviewer can audit why the pipeline
  * classified/matched/categorized the bid as it did.
  */
@@ -40,7 +40,7 @@ export function AgentResultPanel({
       {sorted.map(([name, result]) => (
         <Card key={name}>
           <CardHeader className="flex-row items-center justify-between space-y-0 py-3">
-            <CardTitle className="text-sm">{result.agent_name || name}</CardTitle>
+            <CardTitle className="text-sm">{result.agentName || name}</CardTitle>
             <ConfidenceBadge value={result.confidence} />
           </CardHeader>
           <CardContent className="space-y-3 pt-0">
@@ -52,11 +52,11 @@ export function AgentResultPanel({
                 Raw output
               </summary>
               <pre className="mt-2 max-h-64 overflow-auto rounded-md bg-muted p-3 text-xs">
-                {JSON.stringify(result.raw_output, null, 2)}
+                {JSON.stringify(result.rawOutput, null, 2)}
               </pre>
             </details>
             <p className="text-xs text-muted-foreground">
-              {formatDate(result.created_at)}
+              {formatDate(result.createdAt)}
             </p>
           </CardContent>
         </Card>

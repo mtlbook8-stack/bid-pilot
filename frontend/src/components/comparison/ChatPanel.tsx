@@ -89,7 +89,7 @@ export function ChatPanel({
         ) : (
           messages.map((message, i) => (
             <ChatMessageBubble
-              key={`${message.role}-${i}-${message.created_at}`}
+              key={`${message.role}-${i}-${message.createdAt}`}
               message={message}
               streaming={streaming && i === lastAssistantIndex}
             />

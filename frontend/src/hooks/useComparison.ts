@@ -57,40 +57,44 @@ export function useComparison(
   // Seed local state from the loaded session exactly once it arrives / changes.
   useEffect(() => {
     if (sessionQuery.data) {
-      setMessages(sessionQuery.data.conversation_history);
+      setMessages(sessionQuery.data.conversationHistory);
       setTable(sessionQuery.data.table);
     }
   }, [sessionQuery.data]);
 
+  // The backend (comparison_service.chat) emits, per turn: a `routed` frame
+  // naming the specialist, then a single `message` frame carrying the FULL
+  // assistant reply (no token deltas), then `done`. An `error` frame carries
+  // the AppError envelope. We fold each into the placeholder assistant turn.
   const handleEvent = useCallback((evt: ChatStreamEvent) => {
     switch (evt.event) {
       case "routed":
         // Orchestrator picked a specialist; tag the placeholder reply.
-        setLastHandledBy(evt.handled_by);
+        setLastHandledBy(evt.agent);
         setMessages((prev) => {
           const idx = assistantIndexRef.current;
           if (idx === null) return prev;
           const next = [...prev];
-          next[idx] = { ...next[idx], handled_by: evt.handled_by };
+          next[idx] = { ...next[idx], handledBy: evt.agent };
           return next;
         });
         break;
-      case "delta":
-        // Append streamed text to the active assistant message.
+      case "message":
+        // The complete assistant reply for this turn.
+        if (evt.handledBy) setLastHandledBy(evt.handledBy);
         setMessages((prev) => {
           const idx = assistantIndexRef.current;
           if (idx === null) return prev;
           const next = [...prev];
-          next[idx] = { ...next[idx], content: next[idx].content + evt.text };
+          next[idx] = {
+            ...next[idx],
+            content: evt.content,
+            handledBy: evt.handledBy ?? next[idx].handledBy,
+          };
           return next;
         });
-        break;
-      case "table_update":
-        // A sub-agent edited the comparison table — swap in the new version.
-        setTable(evt.table);
         break;
       case "done":
-        if (evt.handled_by) setLastHandledBy(evt.handled_by);
         setStreaming(false);
         assistantIndexRef.current = null;
         break;
@@ -134,14 +138,14 @@ export function useComparison(
       const userMsg: ChatMessage = {
         role: "user",
         content: trimmed,
-        handled_by: null,
-        created_at: now,
+        handledBy: null,
+        createdAt: now,
       };
       const placeholder: ChatMessage = {
         role: "assistant",
         content: "",
-        handled_by: null,
-        created_at: now,
+        handledBy: null,
+        createdAt: now,
       };
 
       setMessages((prev) => {
