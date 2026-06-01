@@ -18,6 +18,7 @@ behind the auth dependency (the user is not yet authenticated to BidPilot when
 linking), so they are mounted without `get_current_user`.
 """
 
+import base64
 import logging
 import uuid
 from urllib.parse import urlencode
@@ -43,6 +44,24 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 # offline_access (and openid/profile), so we must NOT include them explicitly
 # or AAD rejects the token request as containing reserved scopes.
 _LINK_SCOPES = ["https://graph.microsoft.com/Mail.Read"]
+
+
+def _encode_state(spa_user_id: str) -> str:
+    nonce = uuid.uuid4().hex
+    raw = f"{nonce}.{spa_user_id}".encode("utf-8")
+    return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
+
+
+def _decode_state(state: str | None) -> str | None:
+    if not state:
+        return None
+    try:
+        padded = state + "=" * (-len(state) % 4)
+        raw = base64.urlsafe_b64decode(padded.encode("ascii")).decode("utf-8")
+        _, _, spa_user_id = raw.partition(".")
+        return spa_user_id or None
+    except Exception:
+        return None
 
 
 class _OAuthHelper:
@@ -107,17 +126,19 @@ class _OAuthHelper:
 
 @router.get("/login")
 async def login(
+    user: UserContext = Depends(get_current_user),
     container: AppContainer = Depends(get_container),
 ) -> dict:
     """
     Return the Microsoft OAuth authorize URL for linking a mailbox.
 
-    The SPA opens this URL so the user consents to mailbox access. A random
-    `state` is included for the SPA to round-trip; see the module note on the CSRF
-    simplification.
+    The SPA opens this URL so the user consents to mailbox access. The OAuth
+    `state` embeds the SPA user's oid so the callback can attribute the new
+    LinkedAccount to the BidPilot user — not the oid from the mailbox's home
+    tenant (which differs for cross-tenant guest scenarios like vetdist).
     """
     helper = _OAuthHelper(container.settings)
-    state = uuid.uuid4().hex
+    state = _encode_state(user.user_id)
     return {"authorizeUrl": helper.authorize_url(state), "state": state}
 
 
@@ -197,7 +218,11 @@ async def callback(
         or claims.get("upn")
         or ""
     )
-    user_id = claims.get("oid") or claims.get("sub") or email
+    # Attribute the linked account to the BidPilot SPA user (carried in state),
+    # not the oid from the mailbox's home tenant — those differ in cross-tenant
+    # link flows and would otherwise hide the account from the SPA's list view.
+    spa_user_id = _decode_state(state)
+    user_id = spa_user_id or claims.get("oid") or claims.get("sub") or email
     if not email:
         logger.warning("OAuth token did not identify a mailbox")
         return _frontend_redirect(container.settings, "error", "no_mailbox")
