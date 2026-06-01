@@ -140,6 +140,13 @@ class GraphMailClient:
                 for raw in payload.get("value", []) or []:
                     emails.append(self._map_email(raw))
 
+                # On a brand-new link (no watermark), the docstring promises we only
+                # fetch the most recent page rather than replay years of mail. Without
+                # this guard a fresh mailbox with thousands of messages would page
+                # nextLink to exhaustion, blowing the function timeout.
+                if since is None:
+                    break
+
                 next_link = payload.get("@odata.nextLink")
                 if not next_link:
                     break

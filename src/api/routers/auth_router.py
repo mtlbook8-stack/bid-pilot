@@ -24,6 +24,7 @@ from urllib.parse import urlencode
 
 import msal
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import RedirectResponse
 
 from src.api.dependencies import (
     UserContext,
@@ -38,9 +39,10 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-# Delegated Graph scopes for reading mail. offline_access yields a refresh token
-# so the pollers can run without the user present (build doc instruction 9).
-_LINK_SCOPES = ["offline_access", "https://graph.microsoft.com/Mail.Read"]
+# Delegated Graph scopes for reading mail. MSAL automatically requests
+# offline_access (and openid/profile), so we must NOT include them explicitly
+# or AAD rejects the token request as containing reserved scopes.
+_LINK_SCOPES = ["https://graph.microsoft.com/Mail.Read"]
 
 
 class _OAuthHelper:
@@ -54,21 +56,22 @@ class _OAuthHelper:
 
     def __init__(self, settings) -> None:
         self._settings = settings
-        self._authority = (
-            f"https://login.microsoftonline.com/{settings.entra_tenant_id}"
-            if settings.entra_tenant_id
-            else "https://login.microsoftonline.com/common"
-        )
+        # Multi-tenant by design: each linked mailbox lives in its OWN home
+        # tenant (e.g. anyexcel + vetdist). Forcing the BidPilot tenant here
+        # makes guest-user sign-ins issue tokens with tid=bidpilot, which then
+        # 404 on /users/{their-upn}/messages. /common lets MSAL route the user
+        # to their home tenant so the issued token addresses their real mailbox.
+        self._authority = "https://login.microsoftonline.com/common"
 
     @property
     def _redirect_uri(self) -> str:
         """Where Microsoft sends the user back with the auth code."""
-        # The webhook_notification_url shares the API base; derive the callback
-        # from the configured client by convention. Falls back to a relative path
-        # the SPA can resolve when no base is configured (dev).
-        base = self._settings.webhook_notification_url
+        # Prefer the explicit API base URL. Fall back to deriving from the
+        # webhook URL's origin for backward compatibility, then to a relative
+        # path the SPA can resolve when no base is configured (dev).
+        base = self._settings.api_base_url or self._settings.webhook_notification_url
         if base:
-            origin = base.split("/api/")[0]
+            origin = base.split("/api/")[0].rstrip("/")
             return f"{origin}/api/auth/callback"
         return "/api/auth/callback"
 
@@ -118,43 +121,74 @@ async def login(
     return {"authorizeUrl": helper.authorize_url(state), "state": state}
 
 
+def _frontend_redirect(settings, status: str, detail: str | None = None) -> RedirectResponse:
+    """
+    Build a 302 back to the SPA's /email-accounts page with status query params.
+
+    The browser navigation that started the OAuth flow ends here, so the
+    callback MUST redirect (not return JSON) to land the user back in the app.
+    A `status=ok|error` query param lets the SPA toast success/failure without
+    needing a second round-trip; `detail` carries a short, non-sensitive
+    AAD error code when available.
+    """
+    base = (settings.frontend_url or "").rstrip("/") or "/"
+    params = {"linked": status}
+    if detail:
+        params["detail"] = detail
+    sep = "?" if "?" not in base else "&"
+    return RedirectResponse(
+        url=f"{base}/email-accounts{sep}{urlencode(params)}",
+        status_code=303,
+    )
+
+
 @router.get("/callback")
 async def callback(
     code: str = Query(...),
     state: str | None = Query(None),
     container: AppContainer = Depends(get_container),
-) -> dict:
+) -> RedirectResponse:
     """
-    Exchange the OAuth `code`, persist the refresh token, create a LinkedAccount.
+    Exchange the OAuth `code`, persist the refresh token, create a LinkedAccount,
+    then redirect the browser back to the SPA.
 
     Flow:
       1. Exchange the code for tokens via MSAL.
       2. Read the mailbox identity from the id-token claims (preferred_username).
       3. Store the refresh token in Key Vault under a per-account secret name.
       4. Upsert a LinkedAccount pointing at that secret.
+      5. Best-effort Graph subscription, then 303 redirect to the SPA.
 
-    Returns the created account. A missing token in MSAL's result is surfaced as
-    an AppError with AAD's own error description (without leaking the tokens).
+    Idempotency: browsers (Edge in particular) may prefetch the callback URL,
+    causing AAD to redeem the same code twice and return AADSTS54005/70008 on
+    the second hit. We treat those as a benign duplicate and still redirect to
+    the SPA with `linked=ok` so the user sees the just-created account rather
+    than an error page.
     """
     helper = _OAuthHelper(container.settings)
     try:
         result = helper.exchange_code(code)
     except Exception as exc:
-        raise AppError(
-            code="AUTH_CODE_EXCHANGE",
-            message="Failed to exchange the OAuth authorization code",
-            cause=exc,
-        )
+        logger.warning("OAuth code exchange raised", exc_info=True)
+        return _frontend_redirect(container.settings, "error", "exchange_failed")
 
     if not result or "refresh_token" not in result:
-        raise AppError(
-            code="AUTH_NO_REFRESH_TOKEN",
-            message="OAuth exchange returned no refresh token",
-            context={
-                "error": (result or {}).get("error"),
-                "error_description": (result or {}).get("error_description"),
-            },
+        aad_error = (result or {}).get("error") or ""
+        # Browser prefetch redeems the code first, so the real user request gets
+        # "already redeemed" / "expired" — the account was created on the prefetch
+        # request. Redirect to the SPA so the user sees the linked account.
+        if aad_error == "invalid_grant":
+            logger.info(
+                "OAuth callback received already-redeemed code (likely prefetch); "
+                "redirecting to SPA",
+            )
+            return _frontend_redirect(container.settings, "ok")
+        logger.warning(
+            "OAuth exchange returned no refresh token: %s / %s",
+            aad_error,
+            (result or {}).get("error_description"),
         )
+        return _frontend_redirect(container.settings, "error", aad_error or "no_token")
 
     claims = result.get("id_token_claims") or {}
     email = (
@@ -165,23 +199,17 @@ async def callback(
     )
     user_id = claims.get("oid") or claims.get("sub") or email
     if not email:
-        raise AppError(
-            code="AUTH_NO_MAILBOX_IDENTITY",
-            message="OAuth token did not identify a mailbox",
-        )
+        logger.warning("OAuth token did not identify a mailbox")
+        return _frontend_redirect(container.settings, "error", "no_mailbox")
 
     account_id = uuid.uuid4().hex
     secret_name = f"refresh-token-{account_id}"
 
     try:
         await container.secret_store.set_secret(secret_name, result["refresh_token"])
-    except Exception as exc:
-        raise AppError(
-            code="AUTH_PERSIST_TOKEN",
-            message="Failed to persist the mailbox refresh token",
-            context={"secret_name": secret_name},
-            cause=exc,
-        )
+    except Exception:
+        logger.exception("Failed to persist mailbox refresh token %s", secret_name)
+        return _frontend_redirect(container.settings, "error", "persist_failed")
 
     account = LinkedAccount(
         id=account_id,
@@ -189,7 +217,25 @@ async def callback(
         email_address=email,
         token_secret_name=secret_name,
     )
-    return await container.linked_account_store.upsert(account)
+    account = await container.linked_account_store.upsert(account)
+
+    # Best-effort Graph webhook subscription so new mail is pushed to us.
+    # Falls back to polling if subscription fails (e.g. notification URL
+    # unreachable, tenant policy, etc.).
+    try:
+        sub = await container.webhook_manager.create_subscription(account)
+        sub_id = sub.get("id") if isinstance(sub, dict) else None
+        if sub_id:
+            account.webhook_subscription_id = sub_id
+            account = await container.linked_account_store.upsert(account)
+    except Exception:
+        logger.warning(
+            "Webhook subscription creation failed for %s; falling back to polling",
+            account_id,
+            exc_info=True,
+        )
+
+    return _frontend_redirect(container.settings, "ok")
 
 
 @router.get("/me")

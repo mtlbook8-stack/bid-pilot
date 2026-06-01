@@ -86,17 +86,21 @@ class GraphTokenManager:
         """
         if self._app is None:
             try:
+                # Multi-tenant by design: refresh tokens were issued under each
+                # linked user's HOME tenant (anyexcel, vetdist, ...). /common
+                # lets MSAL route the refresh exchange to that tenant; pinning
+                # to BidPilot's tenant here would invalidate every cross-tenant
+                # mailbox.
                 self._app = msal.ConfidentialClientApplication(
                     client_id=self._settings.entra_client_id,
                     client_credential=self._settings.entra_client_secret,
-                    authority="https://login.microsoftonline.com/"
-                    f"{self._settings.entra_tenant_id}",
+                    authority="https://login.microsoftonline.com/common",
                 )
             except Exception as exc:
                 raise AppError(
                     code="GRAPH_TOKEN",
                     message="Failed to initialize the MSAL confidential client",
-                    context={"tenant_id": self._settings.entra_tenant_id},
+                    context={},
                     cause=exc,
                 )
         return self._app

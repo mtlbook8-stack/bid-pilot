@@ -1,0 +1,8 @@
+[
+  {"name": "BIDPILOT_ENTRA_CLIENT_ID", "value": "3d7808b1-e883-4b8f-9db6-a09e5f9d690e", "slotSetting": false},
+  {"name": "BIDPILOT_ENTRA_TENANT_ID", "value": "c40c1d20-61e0-4cb1-8e3e-a2d533cdd8ed", "slotSetting": false},
+  {"name": "BIDPILOT_ENTRA_CLIENT_SECRET", "value": "@Microsoft.KeyVault(SecretUri=https://bidpilot-dev-kv-7gjss5.vault.azure.net/secrets/entra-client-secret/)", "slotSetting": false},
+  {"name": "BIDPILOT_WEBHOOK_NOTIFICATION_URL", "value": "https://bidpilot-dev-func-7gjss5.azurewebsites.net/api/webhooks/graph", "slotSetting": false},
+  {"name": "BIDPILOT_API_BASE_URL", "value": "https://bidpilot-dev-api.salmonriver-8c54ee03.eastus2.azurecontainerapps.io", "slotSetting": false},
+  {"name": "BIDPILOT_FRONTEND_URL", "value": "https://orange-river-02639b40f.7.azurestaticapps.net", "slotSetting": false}
+]

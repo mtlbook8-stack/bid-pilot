@@ -1,5 +1,49 @@
 # BidPilot deploy — resume state (2026-05-29)
 
+## Status snapshot (post-resume)
+- ✅ Container App `bidpilot-dev-api` running image `bidpilot-api:v1`; `/health` returns `{"status":"ok"}`
+- ✅ Function App `bidpilot-dev-func-7gjss5` has 8 triggers loaded:
+  - `bid_processing_trigger` (cosmosDBTrigger)
+  - `bid_retry_trigger`, `connectivity_check`, `email_polling_trigger`, `model_health_check`, `webhook_renewal_trigger` (timerTrigger)
+  - `manual_poll_trigger`, `webhook_notification` (httpTrigger)
+- ✅ App settings added for Cosmos change-feed binding: `CosmosDbConnection__accountEndpoint`, `CosmosDbConnection__credential=managedidentity` (Function MI already holds the `Cosmos DB Built-in Data Contributor` role)
+- ❌ Claude Sonnet 4.6 still NOT deployed in AI Foundry — CLI rejects `modelProviderData`; deploy via portal (see step 4)
+- ⏳ Entra app registration, frontend deploy, full E2E smoke test still pending
+
+## Function App packaging — CRITICAL Windows gotcha
+`Compress-Archive` (and `[ZipFile]::CreateFromDirectory`) on Windows write entry
+names with `\` separators. Linux unzip treats `\` as literal filename characters,
+so `src\__init__.py` arrives as a flat file with a backslash in its name and the
+`src` package never exists at runtime → `ModuleNotFoundError: No module named 'src'`.
+
+Use [scripts/pack_func.ps1](scripts/pack_func.ps1) which writes proper
+forward-slash entry names via `ZipArchive.CreateEntry`. Reproducible bundle:
+
+```powershell
+$stage = Join-Path $env:TEMP "bidpilot-func-pkg"
+if (Test-Path $stage) { Remove-Item $stage -Recurse -Force }
+New-Item -ItemType Directory -Path $stage | Out-Null
+Copy-Item -Path "src" -Destination $stage -Recurse
+Copy-Item -Path "src\functions\host.json"      -Destination (Join-Path $stage 'host.json')        -Force
+Copy-Item -Path "src\functions\function_app.py" -Destination (Join-Path $stage 'function_app.py') -Force
+Copy-Item -Path "requirements.txt"             -Destination (Join-Path $stage 'requirements.txt') -Force
+$zip = Join-Path $env:TEMP "bidpilot-func.zip"
+.\scripts\pack_func.ps1 -StageDir $stage -ZipPath $zip
+az functionapp deployment source config-zip -g rg-bidpilot -n bidpilot-dev-func-7gjss5 --src $zip --build-remote true
+az functionapp restart -n bidpilot-dev-func-7gjss5 -g rg-bidpilot
+```
+
+Verify:
+```powershell
+az functionapp function list -n bidpilot-dev-func-7gjss5 -g rg-bidpilot `
+  --query "[].{name:name, trigger:config.bindings[0].type}" -o table
+```
+Expect 8 rows. If you see 0, check App Insights traces for indexing errors:
+```powershell
+az monitor app-insights query --app c139248a-2d6d-4490-a365-3293d450c9fe `
+  --analytics-query "union traces, exceptions | where timestamp > ago(5m) and (severityLevel>=2 or message has 'functions loaded') | order by timestamp desc | take 20 | project timestamp, severityLevel, message=coalesce(message,outerMessage)" -o table
+```
+
 ## Azure context
 - Sub: `adb4580f-cc0e-42ed-9d39-d06a49f81b9a`
 - Tenant: `c40c1d20-61e0-4cb1-8e3e-a2d533cdd8ed` (anyexcel)

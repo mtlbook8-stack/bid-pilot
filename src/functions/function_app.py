@@ -30,6 +30,52 @@ the lifetime of the worker, which is the correct scope for pooled clients.
 
 import asyncio
 import logging
+import os
+import sys
+
+# Ensure the directory containing this file (the deployment package root in
+# Azure Functions) is on sys.path so `from src.* import ...` resolves whether
+# the worker is started from this directory or elsewhere. Required on Flex
+# Consumption where the Python indexer otherwise reports
+# ModuleNotFoundError: No module named 'src'.
+_PKG_ROOT = os.path.dirname(os.path.abspath(__file__))
+# Flex Consumption: the Python worker is launched from the runtime's
+# "standby" mount (e.g. /tmp/functions/standby/wwwroot) but ``__file__`` may
+# still report /home/site/wwwroot. Probe every plausible root for the actual
+# ``src`` package and prepend the first match (and the standby root) to
+# sys.path so ``from src.* import ...`` resolves during indexing.
+_CANDIDATE_ROOTS = [
+    _PKG_ROOT,
+    os.getcwd(),
+    "/home/site/wwwroot",
+    "/tmp/functions/standby/wwwroot",
+]
+for _candidate in _CANDIDATE_ROOTS:
+    if _candidate and _candidate not in sys.path:
+        sys.path.insert(0, _candidate)
+# Pick the first candidate that actually contains src/__init__.py and make
+# sure it's at the very front of sys.path.
+for _candidate in _CANDIDATE_ROOTS:
+    if _candidate and os.path.isfile(os.path.join(_candidate, "src", "__init__.py")):
+        try:
+            sys.path.remove(_candidate)
+        except ValueError:
+            pass
+        sys.path.insert(0, _candidate)
+        break
+def _safe_listdir(p):
+    try:
+        return sorted(os.listdir(p))[:60]
+    except Exception as _e:
+        return f"err:{_e!r}"
+
+sys.stderr.write(
+    f"[bidpilot_function_app] __file__={__file__!r} _PKG_ROOT={_PKG_ROOT!r} "
+    f"cwd={os.getcwd()!r} "
+    f"candidate_src_found="
+    f"{[c for c in _CANDIDATE_ROOTS if c and os.path.isfile(os.path.join(c, 'src', '__init__.py'))]!r}\n"
+)
+sys.stderr.flush()
 
 import azure.functions as func
 

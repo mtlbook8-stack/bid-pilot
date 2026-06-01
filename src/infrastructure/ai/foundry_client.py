@@ -93,7 +93,12 @@ class AnthropicFoundryClient:
 
         # Anthropic Messages API contract. anthropic-version is configurable so a
         # provider API bump is a settings change, not a redeploy of code.
-        url = f"{self._settings.ai_foundry_endpoint.rstrip('/')}/v1/messages"
+        # Azure Foundry hosts Anthropic models under /anthropic/v1/messages with
+        # an Azure-side ?api-version query string (distinct from anthropic-version).
+        url = (
+            f"{self._settings.ai_foundry_endpoint.rstrip('/')}"
+            "/anthropic/v1/messages?api-version=2024-08-01-preview"
+        )
         headers = {
             "Authorization": f"Bearer {token}",
             "anthropic-version": self._settings.ai_foundry_anthropic_version,

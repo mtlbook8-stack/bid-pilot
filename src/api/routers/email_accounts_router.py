@@ -72,7 +72,7 @@ async def unlink_account(
     return {"status": "unlinked", "accountId": account_id}
 
 
-@router.post("/{account_id}/poll")
+@router.get("/{account_id}/poll")
 async def poll_account(
     account_id: str,
     manual_poll: ManualPollService = Depends(get_manual_poll_service),

@@ -83,15 +83,22 @@ class GraphWebhookManager:
         """
         token = await self._get_token(account)
         expiry = self._expiry()
+        # Address the mailbox explicitly by `/users/{email}/messages`. The
+        # delegated token obtained via the refresh-token grant lacks the
+        # interactive session needed to resolve `me`, so `me/messages` returns
+        # 404 from /subscriptions; the explicit form is unambiguous and works
+        # for both delegated and app-only tokens.
+        resource = f"users/{account.email_address}/messages"
         body = {
             "changeType": _SUBSCRIPTION_CHANGE_TYPE,
             "notificationUrl": self._settings.webhook_notification_url,
-            "resource": _SUBSCRIPTION_RESOURCE,
+            "resource": resource,
             "expirationDateTime": expiry.isoformat(),
             # Echoed back on every notification; used as a shared secret/correlator.
             "clientState": account.id,
         }
 
+        response: httpx.Response | None = None
         try:
             response = await self._http.post(
                 f"{_GRAPH_BASE_URL}/subscriptions",
@@ -101,12 +108,30 @@ class GraphWebhookManager:
             response.raise_for_status()
             return response.json()
         except Exception as exc:
+            # Capture Graph's response body so the failure mode (bad resource,
+            # webhook validation failure, missing permission, etc.) is visible
+            # in logs without a second round-trip.
+            graph_body = ""
+            if response is not None:
+                try:
+                    graph_body = response.text[:1000]
+                except Exception:
+                    graph_body = "<unreadable>"
+            logger.warning(
+                "Graph subscription POST failed: status=%s body=%s request_body=%s",
+                response.status_code if response is not None else "n/a",
+                graph_body,
+                body,
+            )
             raise AppError(
                 code="GRAPH_WEBHOOK",
                 message="Failed to create a Graph subscription",
                 context={
                     "account_id": account.id,
                     "notification_url": self._settings.webhook_notification_url,
+                    "resource": resource,
+                    "status": response.status_code if response is not None else None,
+                    "graph_body": graph_body,
                 },
                 cause=exc,
             )

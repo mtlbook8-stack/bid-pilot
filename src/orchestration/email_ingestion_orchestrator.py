@@ -91,9 +91,14 @@ class EmailIngestionOrchestrator:
         using `latest_received_at` after a successful poll, so a crash mid-poll
         does not skip unprocessed mail.
         """
+        # Emit `started` BEFORE the Graph fetch so the UI sees immediate progress
+        # even on a slow/hanging fetch (httpx timeout is 120s). Without this, a
+        # cold-path Graph call leaves the SSE stream silent and the UI appears
+        # to "load forever".
+        await self._emit(progress, {"event": "started", "account": account.email_address})
+
         emails = await self._fetch(account)
 
-        await self._emit(progress, {"event": "started", "account": account.email_address})
         await self._emit(progress, {"event": "emails_found", "count": len(emails)})
 
         bids_created = 0

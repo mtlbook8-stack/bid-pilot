@@ -48,8 +48,11 @@ interface ApiErrorBody {
  * base-URL juggling. SSE endpoints (chat, poll) are handled by the hooks, which
  * reuse `authHeaders()` for their fetch-stream connections.
  */
+const DEFAULT_BASE_URL =
+  (import.meta.env.VITE_API_BASE_URL ?? "/api").replace(/\/$/, "");
+
 export class ApiClient {
-  constructor(private readonly baseUrl: string = "/api") {}
+  constructor(private readonly baseUrl: string = DEFAULT_BASE_URL) {}
 
   /** Build the Authorization header from the current MSAL token (if any). */
   async authHeaders(): Promise<Record<string, string>> {
@@ -105,7 +108,7 @@ export class ApiClient {
    * the browser should navigate to; the backend handles the callback.
    */
   getEmailLinkUrl(): Promise<{ authorizeUrl: string; state: string }> {
-    return this.request("/auth/link-email");
+    return this.request("/auth/login");
   }
 
   /** Current authenticated user profile (from the validated Entra token). */

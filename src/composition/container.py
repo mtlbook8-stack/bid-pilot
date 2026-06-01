@@ -144,7 +144,11 @@ class AppContainer:
         self._secret_store = self.secret_store
 
         # --- Telemetry (pricing table drives cost estimates) -----------------
-        pricing = OpenTelemetryService.load_pricing("data/model_pricing.json")
+        # Resolve relative to repo root so it works regardless of CWD (Container
+        # App runs from /app, Function App runs from /home/site/wwwroot).
+        from pathlib import Path as _Path
+        pricing_path = _Path(__file__).resolve().parents[2] / "data" / "model_pricing.json"
+        pricing = OpenTelemetryService.load_pricing(str(pricing_path))
         self.telemetry = OpenTelemetryService(pricing)
 
         # --- AI clients (router dispatches claude-* vs gpt-*) ----------------

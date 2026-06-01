@@ -9,6 +9,8 @@ import {
   CheckCircle2,
   Loader2,
   CircleDot,
+  Zap,
+  ZapOff,
 } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
 import { Card, CardContent } from "@/components/ui/card";
@@ -35,10 +37,33 @@ import type { LinkedAccount } from "@/types";
  * ingestion progress via SSE (build doc 8.1) into an inline progress panel.
  */
 export function EmailAccountsPage() {
+  const queryClient = useQueryClient();
   const query = useQuery({
     queryKey: ["email-accounts"],
     queryFn: () => apiClient.listEmailAccounts(),
   });
+
+  // Handle OAuth-callback redirect: ?linked=ok|error[&detail=...]
+  // The backend 303s back here after the OAuth round-trip; show a toast-style
+  // banner, then strip the query params so a refresh doesn't re-trigger.
+  const [linkBanner, setLinkBanner] = useState<
+    { kind: "ok" | "error"; detail?: string } | null
+  >(null);
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const linked = params.get("linked");
+    if (!linked) return;
+    setLinkBanner({
+      kind: linked === "ok" ? "ok" : "error",
+      detail: params.get("detail") || undefined,
+    });
+    void queryClient.invalidateQueries({ queryKey: ["email-accounts"] });
+    // Strip the query params from the URL so a refresh is idempotent.
+    const url = new URL(window.location.href);
+    url.searchParams.delete("linked");
+    url.searchParams.delete("detail");
+    window.history.replaceState({}, "", url.toString());
+  }, [queryClient]);
 
   const link = useMutation({
     mutationFn: () => apiClient.getEmailLinkUrl(),
@@ -63,6 +88,28 @@ export function EmailAccountsPage() {
         </Button>
       }
     >
+      {linkBanner && (
+        <div
+          className={`mb-4 flex items-center gap-2 rounded-md border p-3 text-sm ${
+            linkBanner.kind === "ok"
+              ? "border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-300"
+              : "border-destructive/30 bg-destructive/10 text-destructive"
+          }`}
+        >
+          {linkBanner.kind === "ok" ? (
+            <>
+              <CheckCircle2 className="size-4" /> Mailbox linked successfully.
+            </>
+          ) : (
+            <>
+              <AlertCircle className="size-4" /> Couldn't link mailbox
+              {linkBanner.detail ? ` (${linkBanner.detail})` : ""}. Please try
+              again.
+            </>
+          )}
+        </div>
+      )}
+
       {link.isError && (
         <p className="mb-4 text-sm text-destructive">
           {link.error instanceof ApiError
@@ -129,13 +176,14 @@ function AccountCard({ account }: { account: LinkedAccount }) {
   }, [pollDone, queryClient]);
 
   const health = healthMeta(account);
+  const webhook = webhookMeta(account);
 
   return (
     <Card>
       <CardContent className="p-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="flex size-8 items-center justify-center rounded-md bg-primary/10 text-primary">
                 <Mail className="size-4" />
               </span>
@@ -145,6 +193,14 @@ function AccountCard({ account }: { account: LinkedAccount }) {
               <Badge variant={health.variant} className="gap-1">
                 <health.icon className="size-3" />
                 {health.label}
+              </Badge>
+              <Badge
+                variant={webhook.variant}
+                className="gap-1"
+                title={webhook.tooltip}
+              >
+                <webhook.icon className="size-3" />
+                {webhook.label}
               </Badge>
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
@@ -296,4 +352,47 @@ function healthMeta(account: LinkedAccount): {
   if (account.lastHealthOk === false)
     return { label: "Needs attention", variant: "warning", icon: AlertCircle };
   return { label: "Healthy", variant: "success", icon: CheckCircle2 };
+}
+
+/**
+ * Map an account's webhook subscription state to a badge.
+ *
+ * "Push" = active Graph subscription (new mail arrives within seconds).
+ * "Polling" = no subscription; ingestion happens on the 30-min timer instead.
+ * "Expired" = subscription exists but its expiry is in the past (renewer hasn't
+ * caught up yet); polling still covers it.
+ */
+function webhookMeta(account: LinkedAccount): {
+  label: string;
+  variant: "success" | "warning" | "muted";
+  icon: typeof Zap;
+  tooltip: string;
+} {
+  if (!account.webhookSubscriptionId) {
+    return {
+      label: "Polling",
+      variant: "muted",
+      icon: ZapOff,
+      tooltip: "No active webhook — new mail is picked up by the 30-min poll.",
+    };
+  }
+  if (account.webhookExpiresAt) {
+    const expired = new Date(account.webhookExpiresAt).getTime() < Date.now();
+    if (expired) {
+      return {
+        label: "Webhook expired",
+        variant: "warning",
+        icon: AlertCircle,
+        tooltip: `Subscription expired at ${account.webhookExpiresAt}. Renewer will restore push notifications.`,
+      };
+    }
+  }
+  return {
+    label: "Push active",
+    variant: "success",
+    icon: Zap,
+    tooltip: account.webhookExpiresAt
+      ? `Graph webhook active until ${account.webhookExpiresAt}.`
+      : "Graph webhook active.",
+  };
 }

@@ -50,8 +50,11 @@ class Settings(BaseSettings):
     # Microsoft Graph (uses the Entra app registration above)
     graph_scopes: str = "https://graph.microsoft.com/.default"
 
-    # Webhook
+    # Webhook (Graph change notifications -> Function App)
     webhook_notification_url: str = ""
+    # Public base URL of THIS API (Container App) used to build OAuth redirect URIs.
+    # Falls back to webhook_notification_url's origin for backward compatibility.
+    api_base_url: str = ""
 
     # Functions
     functions_base_url: str = ""
