@@ -104,6 +104,7 @@ class _OAuthHelper:
             "scope": " ".join(_LINK_SCOPES),
             "state": state,
         }
+        params["prompt"] = "select_account"
         return f"{self._authority}/oauth2/v2.0/authorize?{urlencode(params)}"
 
     def exchange_code(self, code: str) -> dict:
@@ -229,6 +230,17 @@ async def callback(
 
     account_id = uuid.uuid4().hex
     secret_name = f"refresh-token-{account_id}"
+
+    existing = await container.linked_account_store.get_active_by_user_and_email(
+        user_id, email
+    )
+    if existing is not None:
+        logger.info(
+            "Dupe mailbox link prevented: user=%s email=%s", user_id, email
+        )
+        # Already linked — just redirect with a success banner so the SPA shows
+        # the existing mailbox instead of creating a duplicate entry.
+        return _frontend_redirect(container.settings, "ok")
 
     try:
         await container.secret_store.set_secret(secret_name, result["refresh_token"])

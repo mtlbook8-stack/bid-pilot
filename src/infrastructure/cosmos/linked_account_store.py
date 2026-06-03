@@ -80,6 +80,40 @@ class CosmosLinkedAccountStore:
                 cause=e,
             )
 
+    async def get_active_by_user_and_email(
+        self, user_id: str, email_address: str
+    ) -> LinkedAccount | None:
+        """
+        Return the active linked account for the given user/email pair, if any.
+
+        Used when a user attempts to link a mailbox so we can prevent duplicates
+        instead of creating multiple identical records.
+        """
+        query = (
+            "SELECT * FROM c WHERE c.userId = @uid "
+            "AND c.emailAddress = @email AND c.isActive = true"
+        )
+        params = [
+            {"name": "@uid", "value": user_id},
+            {"name": "@email", "value": email_address},
+        ]
+        try:
+            items = self._container.query_items(
+                query=query,
+                parameters=params,
+                partition_key=user_id,
+            )
+            async for item in items:
+                return LinkedAccount.model_validate(item)
+            return None
+        except Exception as e:
+            raise AppError(
+                code="STORE_LINKED_ACCOUNT_GET_BY_EMAIL",
+                message="Failed to look up linked account by email",
+                context={"user_id": user_id, "email_address": email_address},
+                cause=e,
+            )
+
     async def list_all_active(self) -> list[LinkedAccount]:
         """
         Every active linked account across all users (cross-partition).
