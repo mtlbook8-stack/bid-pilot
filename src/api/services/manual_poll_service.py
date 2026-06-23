@@ -61,7 +61,20 @@ class ManualPollService:
         "error", ...}` SSE frame so the client sees it live; the generator then
         ends cleanly (the error id lets the user report the failure).
         """
-        account = await self._load_account(account_id, user_id)
+        try:
+            account = await self._load_account(account_id)
+        except AppError as err:
+            yield {"event": "error", **err.user_message}
+            return
+        except Exception as exc:
+            wrapped = AppError(
+                code="MANUAL_POLL_LOAD",
+                message="Failed to load account for poll",
+                context={"account_id": account_id},
+                cause=exc,
+            )
+            yield {"event": "error", **wrapped.user_message}
+            return
 
         queue: asyncio.Queue = asyncio.Queue()
 
@@ -122,26 +135,24 @@ class ManualPollService:
             # await the task and handle the error.
             await queue.put(_DONE)
 
-    async def _load_account(
-        self, account_id: str, user_id: str
-    ) -> LinkedAccount:
-        """Load the user's account, wrapping store errors and 404 (Rule 7)."""
+    async def _load_account(self, account_id: str) -> LinkedAccount:
+        """Load an account by id (cross-partition — any user can poll any account)."""
         try:
-            account = await self._account_store.get(account_id, user_id)
+            account = await self._account_store.get_by_id(account_id)
         except AppError:
             raise
         except Exception as exc:
             raise AppError(
                 code="MANUAL_POLL_LOAD_ACCOUNT",
                 message="Failed to load linked account for poll",
-                context={"account_id": account_id, "user_id": user_id},
+                context={"account_id": account_id},
                 cause=exc,
             )
         if account is None:
             raise AppError(
                 code="MANUAL_POLL_ACCOUNT_MISSING",
-                message="No linked account found for this user",
-                context={"account_id": account_id, "user_id": user_id},
+                message="No linked account found",
+                context={"account_id": account_id},
             )
         return account
 

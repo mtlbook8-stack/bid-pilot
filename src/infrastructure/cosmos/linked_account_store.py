@@ -80,6 +80,22 @@ class CosmosLinkedAccountStore:
                 cause=e,
             )
 
+    async def get_by_id(self, account_id: str) -> LinkedAccount | None:
+        """Cross-partition lookup by account id (no user_id / partition key needed)."""
+        query = "SELECT * FROM c WHERE c.id = @id"
+        params = [{"name": "@id", "value": account_id}]
+        try:
+            items = self._container.query_items(query=query, parameters=params)
+            results = [LinkedAccount.model_validate(item) async for item in items]
+            return results[0] if results else None
+        except Exception as e:
+            raise AppError(
+                code="STORE_LINKED_ACCOUNT_GET_BY_ID",
+                message="Failed to read linked account by id",
+                context={"account_id": account_id},
+                cause=e,
+            )
+
     async def list_all(self) -> list[LinkedAccount]:
         """All linked accounts across all users (cross-partition)."""
         query = "SELECT * FROM c"
