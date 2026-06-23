@@ -3,7 +3,6 @@ import {
   LayoutDashboard,
   FolderKanban,
   FileStack,
-  MailX,
   Mail,
   Plane,
 } from "lucide-react";
@@ -18,7 +17,6 @@ const NAV = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
   { to: "/projects", label: "Projects", icon: FolderKanban, end: false },
   { to: "/bids", label: "All Bids", icon: FileStack, end: false },
-  { to: "/rejected", label: "Rejected", icon: MailX, end: false },
   { to: "/email-accounts", label: "Email Accounts", icon: Mail, end: false },
 ];
 

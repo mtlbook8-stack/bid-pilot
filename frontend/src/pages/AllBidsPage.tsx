@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { FileStack, AlertCircle } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
@@ -113,6 +114,12 @@ export function AllBidsPage() {
           ))}
         </div>
       )}
+      <div className="mt-8 border-t pt-4 text-center text-sm text-muted-foreground">
+        Didn't find a bid?{" "}
+        <Link to="/rejected" className="text-primary underline-offset-4 hover:underline">
+          Check rejected emails
+        </Link>
+      </div>
     </PageShell>
   );
 }
