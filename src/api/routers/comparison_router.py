@@ -105,7 +105,7 @@ async def chat(
         async for event in comparison.chat(project_id, session_id, body.message):
             yield {"data": json.dumps(event)}
 
-    return EventSourceResponse(event_stream())
+    return EventSourceResponse(event_stream(), sep="\n")
 
 
 @router.get("/{project_id}/sessions/{session_id}/summary")

@@ -89,4 +89,4 @@ async def poll_account(
         async for event in manual_poll.poll(account_id, user.user_id):
             yield {"data": json.dumps(event)}
 
-    return EventSourceResponse(event_stream())
+    return EventSourceResponse(event_stream(), sep="\n")
