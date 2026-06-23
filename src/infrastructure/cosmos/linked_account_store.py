@@ -80,6 +80,20 @@ class CosmosLinkedAccountStore:
                 cause=e,
             )
 
+    async def list_all(self) -> list[LinkedAccount]:
+        """All linked accounts across all users (cross-partition)."""
+        query = "SELECT * FROM c"
+        try:
+            items = self._container.query_items(query=query)
+            return [LinkedAccount.model_validate(item) async for item in items]
+        except Exception as e:
+            raise AppError(
+                code="STORE_LINKED_ACCOUNT_LIST_ALL",
+                message="Failed to list all linked accounts",
+                context={},
+                cause=e,
+            )
+
     async def list_all_active(self) -> list[LinkedAccount]:
         """
         Every active linked account across all users (cross-partition).

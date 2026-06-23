@@ -35,10 +35,9 @@ router = APIRouter(prefix="/email-accounts", tags=["email-accounts"])
 @router.get("")
 async def list_accounts(
     container: AppContainer = Depends(get_container),
-    user: UserContext = Depends(get_current_user),
 ) -> list:
-    """List the linked accounts owned by the requesting user (`/userId`)."""
-    return await container.linked_account_store.list_for_user(user.user_id)
+    """List all linked accounts across all users."""
+    return await container.linked_account_store.list_all()
 
 
 @router.delete("/{account_id}")
