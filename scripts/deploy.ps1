@@ -65,6 +65,15 @@ Write-Host "==> Done. Live image: $IMAGE_REF"
 # --- Frontend deployment ---
 Write-Host ""
 Write-Host "==> Building frontend..."
+
+# Resolve the Container App FQDN so the frontend can reach the API in production.
+$API_FQDN = (& $AZ_PYTHON $WRAPPER containerapp show `
+    --name $APP_NAME --resource-group $RESOURCE_GROUP `
+    --query "properties.configuration.ingress.fqdn" -o tsv 2>&1 |
+    Where-Object { $_ -notmatch "UserWarning|Warning|site-packages|cryptography" })
+$env:VITE_API_BASE_URL = "https://$($API_FQDN.Trim())/api"
+Write-Host "    VITE_API_BASE_URL=$($env:VITE_API_BASE_URL)"
+
 Push-Location "$PSScriptRoot\..\frontend"
 try {
     & npm ci --quiet
@@ -76,7 +85,7 @@ try {
     $SWA_TOKEN = (& $AZ_PYTHON $WRAPPER staticwebapp secrets list `
         --name bidpilot-dev-swa `
         --resource-group $RESOURCE_GROUP `
-        --query "properties.apiKey" -o tsv 2>&1 | Where-Object { $_ -notmatch "UserWarning|Warning|site-packages" })
+        --query "properties.apiKey" -o tsv 2>&1 | Where-Object { $_ -notmatch "UserWarning|Warning|site-packages|cryptography" })
     & swa deploy ./dist --deployment-token $SWA_TOKEN --env production
     if ($LASTEXITCODE -ne 0) { throw "SWA deploy failed" }
     Write-Host "==> Frontend deployed."
