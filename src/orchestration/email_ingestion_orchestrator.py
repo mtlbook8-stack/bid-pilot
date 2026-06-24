@@ -97,7 +97,15 @@ class EmailIngestionOrchestrator:
         # to "load forever".
         await self._emit(progress, {"event": "started", "account": account.email_address})
 
+        logger.info(
+            "POLL start account=%s watermark=%s",
+            account.email_address,
+            account.last_processed_at.isoformat() if account.last_processed_at else "None",
+        )
+
         emails = await self._fetch(account)
+
+        logger.info("POLL fetched %d emails for account=%s", len(emails), account.email_address)
 
         await self._emit(progress, {"event": "emails_found", "count": len(emails)})
 
@@ -114,6 +122,12 @@ class EmailIngestionOrchestrator:
                 latest_received_at = email.received_at
 
             if not self._passes_filter(email):
+                logger.info(
+                    "POLL filtered out email subject=%r sender=%s attachments=%s",
+                    email.subject,
+                    email.sender_email,
+                    [a.filename for a in email.attachments],
+                )
                 continue
 
             await self._emit(
