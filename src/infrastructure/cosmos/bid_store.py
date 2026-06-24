@@ -88,9 +88,10 @@ class CosmosBidStore:
         )
 
     async def list_all(self) -> list[IngestedBid]:
-        """Every bid (the All Bids page)."""
+        """Every bid except rejected ones (the All Bids page)."""
         return await self._query(
-            "SELECT * FROM c", [], code="STORE_BID_LIST_ALL", context={},
+            "SELECT * FROM c WHERE c.status != 'Rejected'",
+            [], code="STORE_BID_LIST_ALL", context={},
         )
 
     async def _query(
