@@ -1,4 +1,4 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -30,6 +30,43 @@ function fileExt(filename: string | null | undefined): string {
 }
 
 
+/**
+ * Fetches a protected API URL with the Bearer token and returns a blob: URL
+ * the browser can load without needing auth headers on its own. Revokes the
+ * blob URL on unmount to avoid memory leaks.
+ */
+function useAuthBlobUrl(apiUrl: string) {
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let objectUrl: string | null = null;
+    let cancelled = false;
+
+    async function load() {
+      try {
+        const headers = await apiClient.authHeaders();
+        const res = await fetch(apiUrl, { headers });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const blob = await res.blob();
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(blob);
+        setBlobUrl(objectUrl);
+      } catch {
+        if (!cancelled) setFailed(true);
+      }
+    }
+
+    void load();
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [apiUrl]);
+
+  return { blobUrl, failed };
+}
+
 function AttachmentViewer({
   url,
   filename,
@@ -37,13 +74,24 @@ function AttachmentViewer({
   url: string;
   filename: string | null | undefined;
 }) {
+  const { blobUrl, failed } = useAuthBlobUrl(url);
   const ext = fileExt(filename);
+
+  if (failed) return <DownloadFallback url={url} filename={filename} />;
+
+  if (!blobUrl) {
+    return (
+      <div className="flex h-[600px] items-center justify-center bg-muted">
+        <div className="size-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      </div>
+    );
+  }
 
   if (IMAGE_EXTS.has(ext)) {
     return (
       <div className="flex h-[600px] items-center justify-center bg-muted p-4">
         <img
-          src={url}
+          src={blobUrl}
           alt={filename ?? "attachment"}
           className="max-h-full max-w-full object-contain"
         />
@@ -54,7 +102,7 @@ function AttachmentViewer({
   if (PDF_EXTS.has(ext)) {
     return (
       <object
-        data={url}
+        data={blobUrl}
         type="application/pdf"
         className="h-[600px] w-full bg-muted"
         aria-label="Original bid document"
