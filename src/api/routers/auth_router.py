@@ -103,6 +103,7 @@ class _OAuthHelper:
             "response_mode": "query",
             "scope": " ".join(_LINK_SCOPES),
             "state": state,
+            "prompt": "select_account",
         }
         return f"{self._authority}/oauth2/v2.0/authorize?{urlencode(params)}"
 
