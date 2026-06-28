@@ -227,8 +227,15 @@ async def callback(
         logger.warning("OAuth token did not identify a mailbox")
         return _frontend_redirect(container.settings, "error", "no_mailbox")
 
-    account_id = uuid.uuid4().hex
-    secret_name = f"refresh-token-{account_id}"
+    # Reuse the existing record if this email is already linked so re-linking
+    # refreshes the token without creating a duplicate account.
+    existing = await container.linked_account_store.get_by_email(email)
+    if existing:
+        account_id = existing.id
+        secret_name = existing.token_secret_name
+    else:
+        account_id = uuid.uuid4().hex
+        secret_name = f"refresh-token-{account_id}"
 
     try:
         await container.secret_store.set_secret(secret_name, result["refresh_token"])
@@ -236,7 +243,7 @@ async def callback(
         logger.exception("Failed to persist mailbox refresh token %s", secret_name)
         return _frontend_redirect(container.settings, "error", "persist_failed")
 
-    account = LinkedAccount(
+    account = existing or LinkedAccount(
         id=account_id,
         user_id=user_id,
         email_address=email,

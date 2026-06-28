@@ -80,6 +80,22 @@ class CosmosLinkedAccountStore:
                 cause=e,
             )
 
+    async def get_by_email(self, email_address: str) -> LinkedAccount | None:
+        """Cross-partition lookup by email address. Returns the first match."""
+        query = "SELECT * FROM c WHERE c.emailAddress = @email"
+        params = [{"name": "@email", "value": email_address}]
+        try:
+            items = self._container.query_items(query=query, parameters=params)
+            results = [LinkedAccount.model_validate(item) async for item in items]
+            return results[0] if results else None
+        except Exception as e:
+            raise AppError(
+                code="STORE_LINKED_ACCOUNT_GET_BY_EMAIL",
+                message="Failed to look up linked account by email",
+                context={"email_address": email_address},
+                cause=e,
+            )
+
     async def get_by_id(self, account_id: str) -> LinkedAccount | None:
         """Cross-partition lookup by account id (no user_id / partition key needed)."""
         query = "SELECT * FROM c WHERE c.id = @id"
