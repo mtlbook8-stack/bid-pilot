@@ -113,11 +113,12 @@ class CostComparator(BaseAgent):
         )
         code = self._strip_code_fences(raw_code)
 
-        # Step 3: assemble stdin. The generated code expects ONE JSON object with
-        # both inputs; columns_json/normalizer_output_json are themselves JSON
-        # strings, so they are re-parsed before nesting to avoid double-encoding
-        # (the code would otherwise receive strings where it expects objects).
-        stdin_data = self._build_stdin_payload(columns_json, normalizer_output_json)
+        # Step 3: assemble stdin. The system prompt tells the model that stdin IS
+        # the normalizer output JSON (groups / ungrouped_items / summary at the
+        # top level). Columns are already in the user message, so the generated
+        # code can reference them as constants. Passing the raw normalizer JSON
+        # avoids the KeyError the wrapped payload caused.
+        stdin_data = normalizer_output_json
 
         try:
             result: SandboxResult = await self._sandbox.run(
