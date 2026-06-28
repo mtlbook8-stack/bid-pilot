@@ -74,31 +74,18 @@ class EmailFilter:
         attachment_filenames: list[str] | None,
     ) -> bool:
         """
-        Tier 1 decision: process only if there ARE attachments AND a keyword
-        appears in the subject, body, or any filename.
+        Tier 1 decision: process if there is at least one attachment.
 
-        The attachment requirement comes first and is non-negotiable: a bid lives
-        in its attached document, so an email with no attachment cannot be a bid
-        no matter what its subject says. This also prevents wasting a Document
-        Intelligence call on a body-only message.
+        This mailbox is dedicated to receiving bids, so any email with an
+        attachment is worth processing — Agent 1 (QuoteValidator) will decide
+        downstream whether it is actually a bid. The only hard gate is the
+        attachment requirement: an email with no attachment cannot carry a bid
+        document and is skipped immediately.
 
-        Returns False on empty/None inputs rather than raising — a malformed
-        email is simply "not a bid we can process", which the caller routes to
-        the rejected/skip path.
+        Returns False on empty/None inputs rather than raising.
         """
         filenames = [f for f in (attachment_filenames or []) if f]
-
-        # No attachment → cannot be a processable bid. Short-circuit before any
-        # string scanning to keep the common "newsletter with no attachment" case
-        # as cheap as possible.
-        if not filenames:
-            return False
-
-        # Scan subject, body, and every filename for any keyword. Filenames are
-        # included because vendors routinely name files "Quote_123Elm.pdf" even
-        # when the email body is empty or generic.
-        haystacks: list[str] = [subject or "", body or "", *filenames]
-        return self._any_keyword_in(haystacks)
+        return bool(filenames)
 
     def should_process_with_text(
         self,
