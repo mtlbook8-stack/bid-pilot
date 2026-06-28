@@ -68,16 +68,19 @@ function useAuthBlobUrl(apiUrl: string) {
 }
 
 function AttachmentViewer({
-  url,
+  blobUrl,
+  failed,
+  apiUrl,
   filename,
 }: {
-  url: string;
+  blobUrl: string | null;
+  failed: boolean;
+  apiUrl: string;
   filename: string | null | undefined;
 }) {
-  const { blobUrl, failed } = useAuthBlobUrl(url);
   const ext = fileExt(filename);
 
-  if (failed) return <DownloadFallback url={url} filename={filename} />;
+  if (failed) return <DownloadFallback url={apiUrl} filename={filename} />;
 
   if (!blobUrl) {
     return (
@@ -107,12 +110,12 @@ function AttachmentViewer({
         className="h-[600px] w-full bg-muted"
         aria-label="Original bid document"
       >
-        <DownloadFallback url={url} filename={filename} />
+        <DownloadFallback url={apiUrl} filename={filename} />
       </object>
     );
   }
 
-  return <DownloadFallback url={url} filename={filename} />;
+  return <DownloadFallback url={apiUrl} filename={filename} />;
 }
 
 function DownloadFallback({
@@ -135,6 +138,42 @@ function DownloadFallback({
         Download {filename}
       </a>
     </div>
+  );
+}
+
+function BidDocumentCard({ bid }: { bid: IngestedBid }) {
+  const apiUrl = apiClient.getBidPdfUrl(bid.id);
+  const { blobUrl, failed } = useAuthBlobUrl(apiUrl);
+
+  return (
+    <Card className="overflow-hidden">
+      <CardHeader className="flex-row items-center justify-between space-y-0 py-3">
+        <CardTitle className="flex items-center gap-2 text-sm">
+          <FileText className="size-4" />
+          <span className="max-w-[220px] truncate">
+            {bid.attachmentFilename}
+          </span>
+        </CardTitle>
+        {blobUrl && (
+          <a
+            href={blobUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="text-xs text-primary hover:underline"
+          >
+            Open in new tab
+          </a>
+        )}
+      </CardHeader>
+      <CardContent className="p-0">
+        <AttachmentViewer
+          blobUrl={blobUrl}
+          failed={failed}
+          apiUrl={apiUrl}
+          filename={bid.attachmentFilename}
+        />
+      </CardContent>
+    </Card>
   );
 }
 
@@ -186,31 +225,7 @@ export function BidDetailPage() {
       actions={<BidStatusBadge status={bid.status} />}
     >
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* Left: document proxy viewer */}
-        <Card className="overflow-hidden">
-          <CardHeader className="flex-row items-center justify-between space-y-0 py-3">
-            <CardTitle className="flex items-center gap-2 text-sm">
-              <FileText className="size-4" />
-              <span className="max-w-[220px] truncate">
-                {bid.attachmentFilename}
-              </span>
-            </CardTitle>
-            <a
-              href={apiClient.getBidPdfUrl(bid.id)}
-              target="_blank"
-              rel="noreferrer"
-              className="text-xs text-primary hover:underline"
-            >
-              Open in new tab
-            </a>
-          </CardHeader>
-          <CardContent className="p-0">
-            <AttachmentViewer
-              url={apiClient.getBidPdfUrl(bid.id)}
-              filename={bid.attachmentFilename}
-            />
-          </CardContent>
-        </Card>
+        <BidDocumentCard bid={bid} />
 
         {/* Right: metadata, corrections, agent trail */}
         <div className="space-y-6">
