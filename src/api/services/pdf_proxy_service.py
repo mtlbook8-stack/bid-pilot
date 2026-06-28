@@ -11,6 +11,7 @@ collaborators are injected (Rule 3); store/blob failures are wrapped as AppError
 (Rules 7, 8).
 """
 
+import mimetypes
 from typing import AsyncIterator
 
 from src.core.errors.app_error import AppError
@@ -53,7 +54,11 @@ class PdfProxyService:
                 context={"bid_id": bid_id},
             )
 
-        # The blob service returns an async iterator; opening it does not buffer
-        # the whole file, so large PDFs stream chunk-by-chunk to the client.
+        # Derive the MIME type from the stored filename so the browser renders
+        # the file correctly (PDF, image, Word doc, etc.). Fall back to
+        # application/octet-stream so the browser always offers a download.
+        content_type, _ = mimetypes.guess_type(bid.attachment_filename or "")
+        content_type = content_type or "application/octet-stream"
+
         stream = self._blob_service.stream(bid.blob_path)
-        return "application/pdf", stream
+        return content_type, stream

@@ -22,6 +22,23 @@ import { apiClient, ApiError } from "@/api/client";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { CorrectionType, IngestedBid } from "@/types";
 
+const MIME_BY_EXT: Record<string, string> = {
+  pdf: "application/pdf",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  gif: "image/gif",
+  webp: "image/webp",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  txt: "text/plain",
+};
+
+function guessMimeType(filename: string | null | undefined): string {
+  const ext = (filename ?? "").split(".").pop()?.toLowerCase() ?? "";
+  return MIME_BY_EXT[ext] ?? "application/octet-stream";
+}
+
 /**
  * BidDetailPage — the full record for one bid: a side-by-side of the original
  * PDF (streamed through the API blob proxy, build doc decision I1) and the
@@ -70,7 +87,7 @@ export function BidDetailPage() {
       actions={<BidStatusBadge status={bid.status} />}
     >
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* Left: PDF proxy viewer */}
+        {/* Left: document proxy viewer */}
         <Card className="overflow-hidden">
           <CardHeader className="flex-row items-center justify-between space-y-0 py-3">
             <CardTitle className="flex items-center gap-2 text-sm">
@@ -91,21 +108,21 @@ export function BidDetailPage() {
           <CardContent className="p-0">
             <object
               data={apiClient.getBidPdfUrl(bid.id)}
-              type="application/pdf"
+              type={guessMimeType(bid.attachmentFilename)}
               className="h-[600px] w-full bg-muted"
               aria-label="Original bid document"
             >
-              <div className="p-6 text-sm text-muted-foreground">
-                Unable to display the PDF inline.{" "}
+              <div className="flex h-[600px] flex-col items-center justify-center gap-3 p-6 text-sm text-muted-foreground">
+                <FileText className="size-8 opacity-40" />
+                <p>Preview not available for this file type.</p>
                 <a
                   href={apiClient.getBidPdfUrl(bid.id)}
                   target="_blank"
                   rel="noreferrer"
                   className="text-primary hover:underline"
                 >
-                  Download it instead
+                  Download {bid.attachmentFilename}
                 </a>
-                .
               </div>
             </object>
           </CardContent>
