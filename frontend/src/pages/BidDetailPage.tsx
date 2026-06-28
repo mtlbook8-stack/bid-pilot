@@ -22,21 +22,72 @@ import { apiClient, ApiError } from "@/api/client";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { CorrectionType, IngestedBid } from "@/types";
 
-const MIME_BY_EXT: Record<string, string> = {
-  pdf: "application/pdf",
-  jpg: "image/jpeg",
-  jpeg: "image/jpeg",
-  png: "image/png",
-  gif: "image/gif",
-  webp: "image/webp",
-  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  txt: "text/plain",
-};
+const IMAGE_EXTS = new Set(["jpg", "jpeg", "png", "gif", "webp", "bmp", "svg"]);
+const PDF_EXTS = new Set(["pdf"]);
 
-function guessMimeType(filename: string | null | undefined): string {
-  const ext = (filename ?? "").split(".").pop()?.toLowerCase() ?? "";
-  return MIME_BY_EXT[ext] ?? "application/octet-stream";
+function fileExt(filename: string | null | undefined): string {
+  return (filename ?? "").split(".").pop()?.toLowerCase() ?? "";
+}
+
+
+function AttachmentViewer({
+  url,
+  filename,
+}: {
+  url: string;
+  filename: string | null | undefined;
+}) {
+  const ext = fileExt(filename);
+
+  if (IMAGE_EXTS.has(ext)) {
+    return (
+      <div className="flex h-[600px] items-center justify-center bg-muted p-4">
+        <img
+          src={url}
+          alt={filename ?? "attachment"}
+          className="max-h-full max-w-full object-contain"
+        />
+      </div>
+    );
+  }
+
+  if (PDF_EXTS.has(ext)) {
+    return (
+      <object
+        data={url}
+        type="application/pdf"
+        className="h-[600px] w-full bg-muted"
+        aria-label="Original bid document"
+      >
+        <DownloadFallback url={url} filename={filename} />
+      </object>
+    );
+  }
+
+  return <DownloadFallback url={url} filename={filename} />;
+}
+
+function DownloadFallback({
+  url,
+  filename,
+}: {
+  url: string;
+  filename: string | null | undefined;
+}) {
+  return (
+    <div className="flex h-[600px] flex-col items-center justify-center gap-3 p-6 text-sm text-muted-foreground">
+      <FileText className="size-8 opacity-40" />
+      <p>No preview available for this file type.</p>
+      <a
+        href={url}
+        target="_blank"
+        rel="noreferrer"
+        className="text-primary hover:underline"
+      >
+        Download {filename}
+      </a>
+    </div>
+  );
 }
 
 /**
@@ -106,25 +157,10 @@ export function BidDetailPage() {
             </a>
           </CardHeader>
           <CardContent className="p-0">
-            <object
-              data={apiClient.getBidPdfUrl(bid.id)}
-              type={guessMimeType(bid.attachmentFilename)}
-              className="h-[600px] w-full bg-muted"
-              aria-label="Original bid document"
-            >
-              <div className="flex h-[600px] flex-col items-center justify-center gap-3 p-6 text-sm text-muted-foreground">
-                <FileText className="size-8 opacity-40" />
-                <p>Preview not available for this file type.</p>
-                <a
-                  href={apiClient.getBidPdfUrl(bid.id)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-primary hover:underline"
-                >
-                  Download {bid.attachmentFilename}
-                </a>
-              </div>
-            </object>
+            <AttachmentViewer
+              url={apiClient.getBidPdfUrl(bid.id)}
+              filename={bid.attachmentFilename}
+            />
           </CardContent>
         </Card>
 
