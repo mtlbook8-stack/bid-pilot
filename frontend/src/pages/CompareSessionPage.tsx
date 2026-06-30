@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { useParams, Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { FileText, Loader2, AlertCircle } from "lucide-react";
+import { useParams, Link, useNavigate } from "react-router-dom";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { FileText, Loader2, AlertCircle, RefreshCw } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -25,6 +25,8 @@ import { apiClient } from "@/api/client";
  */
 export function CompareSessionPage() {
   const { projectId = "", sessionId = "" } = useParams();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const {
     session,
     table,
@@ -36,6 +38,16 @@ export function CompareSessionPage() {
   } = useComparison(projectId, sessionId);
 
   const [summaryOpen, setSummaryOpen] = useState(false);
+
+  const retry = useMutation({
+    mutationFn: () => apiClient.startComparison(projectId, session!.jobId),
+    onSuccess: (newSession) => {
+      queryClient.setQueryData(["session", projectId, newSession.id], newSession);
+      navigate(
+        `/projects/${encodeURIComponent(projectId)}/compare/${encodeURIComponent(newSession.id)}`
+      );
+    },
+  });
 
   if (loading) {
     return (
@@ -103,7 +115,20 @@ export function CompareSessionPage() {
             <EmptyState
               icon={AlertCircle}
               title="Comparison failed"
-              description="The comparison pipeline hit an error assembling this table. You can retry from the job."
+              description="The comparison pipeline hit an error assembling this table."
+              action={
+                <Button
+                  onClick={() => retry.mutate()}
+                  disabled={retry.isPending}
+                >
+                  {retry.isPending ? (
+                    <Loader2 className="mr-2 size-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="mr-2 size-4" />
+                  )}
+                  {retry.isPending ? "Starting…" : "Retry comparison"}
+                </Button>
+              }
             />
           ) : (
             <PipelineProgress phase={session.phase} />
