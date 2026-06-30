@@ -40,6 +40,19 @@ from src.core.interfaces.telemetry_service import ITelemetryService
 # so the default is plenty while still bounding a runaway model-written loop.
 _SANDBOX_TIMEOUT_SECONDS = 30
 
+# Injected at the end of every code-generation system prompt to ensure the model
+# uses the correct stdin keys. The payload sent to the sandbox is always the
+# wrapped form {"columns": [...], "normalized": {...}} built by
+# _build_stdin_payload — not the raw normalizer JSON. This note overrides any
+# ambiguity in the Cosmos-stored template.
+_STDIN_FORMAT_NOTE = (
+    "\n\nCRITICAL — STDIN FORMAT: The JSON object on stdin has exactly two top-level keys:\n"
+    '  data = json.load(sys.stdin)\n'
+    '  columns = data["columns"]              # list of {"bid_id": str, "vendor_name": str}\n'
+    '  groups  = data["normalized"]["groups"] # list of normalized line-item groups\n'
+    "Never use data['groups'] or any other top-level key — only data['columns'] and data['normalized']."
+)
+
 
 class CostComparator(BaseAgent):
     """
@@ -94,9 +107,10 @@ class CostComparator(BaseAgent):
 
         Returns the parsed dict with keys: cost_rows, totals, analysis.
 
-        The stdin payload mirrors the model's user message: the prompt shows the
-        code two inputs (COLUMNS + NORMALIZED DATA), so both are delivered as a
-        single JSON object the generated code reads from stdin. Sandbox failures
+        The stdin payload is built via _build_stdin_payload: both COLUMNS and
+        NORMALIZED DATA are wrapped in {"columns": [...], "normalized": {...}}
+        so the generated code reads data["columns"] and data["normalized"]["groups"]
+        without ambiguity. Sandbox failures
         (non-success or timeout) are wrapped as AppError "AGENT_COST_SANDBOX" with
         stderr captured for the single top-level log entry (Rules 7, 8).
         """
@@ -113,12 +127,11 @@ class CostComparator(BaseAgent):
         )
         code = self._strip_code_fences(raw_code)
 
-        # Step 3: assemble stdin. The system prompt tells the model that stdin IS
-        # the normalizer output JSON (groups / ungrouped_items / summary at the
-        # top level). Columns are already in the user message, so the generated
-        # code can reference them as constants. Passing the raw normalizer JSON
-        # avoids the KeyError the wrapped payload caused.
-        stdin_data = normalizer_output_json
+        # Step 3: assemble stdin. The system prompt tells the model that stdin
+        # contains {"columns": [...], "normalized": {...}} — both inputs in one
+        # JSON object. The generated code reads data["columns"] for vendor
+        # identifiers and data["normalized"]["groups"] for the line items.
+        stdin_data = self._build_stdin_payload(columns_json, normalizer_output_json)
 
         try:
             result: SandboxResult = await self._sandbox.run(
@@ -180,6 +193,12 @@ class CostComparator(BaseAgent):
         render_values = {"learned_rules": rules_block, **template_values}
         system_prompt = self._render(prompt.system_prompt_template, render_values)
         user_message = self._render(prompt.user_message_template, render_values)
+
+        # Append an unambiguous stdin format note so the generated code always
+        # uses the correct keys regardless of what the Cosmos prompt says.
+        # stdin is {"columns": [...], "normalized": {...}} — never the raw
+        # normalizer JSON at the top level, never a different nesting.
+        system_prompt = system_prompt + _STDIN_FORMAT_NOTE
 
         config = prompt.model_config_
         start = time.perf_counter()
