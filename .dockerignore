@@ -18,8 +18,10 @@ __pycache__
 !.env.example
 **/.DS_Store
 
-# Frontend is built and served separately (Static Web Apps / Storage + CDN).
-frontend
+# Frontend node_modules and dist — the Docker build stage installs its own deps
+# and produces its own dist; sending these in the build context would bloat it.
+frontend/node_modules
+frontend/dist
 
 # Infra and docs are not needed inside the runtime image.
 infra

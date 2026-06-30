@@ -7,6 +7,9 @@ import {
   Hammer,
   AlertCircle,
   Loader2,
+  ChevronDown,
+  ChevronUp,
+  FileText,
 } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,8 +17,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { LoadingSkeleton } from "@/components/common/LoadingSkeleton";
 import { EmptyState } from "@/components/common/EmptyState";
+import { BidStatusBadge } from "@/components/bids/BidStatusBadge";
 import { apiClient } from "@/api/client";
 import { ApiError } from "@/api/client";
+import { formatCurrency } from "@/lib/utils";
 import type { JobSummary } from "@/types";
 
 /**
@@ -86,9 +91,16 @@ function JobRow({ job, projectId }: { job: JobSummary; projectId: string }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
+  const [showBids, setShowBids] = useState(false);
 
   const bidCount = job.bidIds.length;
   const canCompare = bidCount >= 2;
+
+  const bidsQuery = useQuery({
+    queryKey: ["bids", "job", job.id],
+    queryFn: () => apiClient.listBids({ jobId: job.id }),
+    enabled: showBids,
+  });
 
   const start = useMutation({
     mutationFn: () => apiClient.startComparison(projectId, job.id),
@@ -112,42 +124,95 @@ function JobRow({ job, projectId }: { job: JobSummary; projectId: string }) {
 
   return (
     <Card>
-      <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="flex size-8 items-center justify-center rounded-md bg-muted text-muted-foreground">
-              <Hammer className="size-4" />
-            </span>
-            <h3 className="truncate font-medium">{job.jobName}</h3>
+      <CardContent className="flex flex-col gap-3 p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="flex size-8 items-center justify-center rounded-md bg-muted text-muted-foreground">
+                <Hammer className="size-4" />
+              </span>
+              <h3 className="truncate font-medium">{job.jobName}</h3>
+            </div>
+            <div className="mt-1.5 flex items-center gap-2">
+              <Badge variant="outline">{job.tradeCategory}</Badge>
+              <span className="text-sm text-muted-foreground">
+                {bidCount} {bidCount === 1 ? "bid" : "bids"}
+              </span>
+            </div>
+            {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
           </div>
-          <div className="mt-1.5 flex items-center gap-2">
-            <Badge variant="outline">{job.tradeCategory}</Badge>
-            <span className="text-sm text-muted-foreground">
-              {bidCount} {bidCount === 1 ? "bid" : "bids"}
-            </span>
+
+          <div className="flex shrink-0 items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowBids((v) => !v)}
+              disabled={bidCount === 0}
+              title={bidCount === 0 ? "No bids yet" : "View bids for this job"}
+            >
+              {showBids ? (
+                <ChevronUp className="size-4" />
+              ) : (
+                <ChevronDown className="size-4" />
+              )}
+              Bids
+            </Button>
+
+            <Button
+              onClick={() => {
+                setError(null);
+                start.mutate();
+              }}
+              disabled={!canCompare || start.isPending}
+              title={
+                canCompare
+                  ? "Start an interactive comparison"
+                  : "Need at least 2 bids to compare"
+              }
+            >
+              {start.isPending ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <GitCompareArrows className="size-4" />
+              )}
+              {start.isPending ? "Starting…" : "Compare"}
+            </Button>
           </div>
-          {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
         </div>
 
-        <Button
-          onClick={() => {
-            setError(null);
-            start.mutate();
-          }}
-          disabled={!canCompare || start.isPending}
-          title={
-            canCompare
-              ? "Start an interactive comparison"
-              : "Need at least 2 bids to compare"
-          }
-        >
-          {start.isPending ? (
-            <Loader2 className="size-4 animate-spin" />
-          ) : (
-            <GitCompareArrows className="size-4" />
-          )}
-          {start.isPending ? "Starting…" : "Compare"}
-        </Button>
+        {showBids && (
+          <div className="border-t pt-3">
+            {bidsQuery.isLoading ? (
+              <LoadingSkeleton lines={2} />
+            ) : bidsQuery.isError ? (
+              <p className="text-sm text-destructive">Failed to load bids.</p>
+            ) : !bidsQuery.data || bidsQuery.data.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No bids found for this job.</p>
+            ) : (
+              <div className="space-y-2">
+                {bidsQuery.data.map((bid) => (
+                  <Link
+                    key={bid.id}
+                    to={`/bids/${encodeURIComponent(bid.id)}`}
+                    className="flex items-center justify-between gap-3 rounded-md border bg-muted/30 px-3 py-2 text-sm hover:bg-muted/60 transition-colors"
+                  >
+                    <div className="flex min-w-0 items-center gap-2">
+                      <FileText className="size-3.5 shrink-0 text-muted-foreground" />
+                      <span className="truncate font-medium">
+                        {bid.vendorName ?? "Unknown vendor"}
+                      </span>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-3">
+                      <BidStatusBadge status={bid.status} />
+                      <span className="tabular-nums font-semibold">
+                        {bid.totalPrice != null ? formatCurrency(bid.totalPrice) : "—"}
+                      </span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </CardContent>
     </Card>
   );

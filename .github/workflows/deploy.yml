@@ -20,9 +20,14 @@ on:
     branches: [main]
     paths:
       - "src/**"
+      - "frontend/src/**"
+      - "frontend/public/**"
+      - "frontend/package*.json"
+      - "frontend/vite.config.*"
       - "infra/**"
       - "requirements.txt"
       - "Dockerfile"
+      - ".dockerignore"
       - ".github/workflows/deploy.yml"
 
 permissions:

@@ -16,9 +16,12 @@ auth login/callback and the health probes runs behind `get_current_user`.
 
 import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from src.api.config import get_settings
 from src.api.dependencies import get_current_user
@@ -182,6 +185,28 @@ def create_app() -> FastAPI:
     )
     app.include_router(rejected_router.router, prefix="/api", dependencies=auth_dep)
     app.include_router(stats_router.router, prefix="/api", dependencies=auth_dep)
+
+    # Serve the React SPA when the container includes a built frontend.
+    # In dev the Vite server runs separately; in production the Docker build
+    # copies dist/ to ./static (see Dockerfile stage 1).
+    _static_dir = Path(__file__).parent.parent.parent / "static"
+    if _static_dir.exists():
+        # Vite puts JS/CSS/images under assets/ — serve them as true static files.
+        app.mount(
+            "/assets",
+            StaticFiles(directory=str(_static_dir / "assets")),
+            name="spa-assets",
+        )
+
+        # Catch-all: any path not claimed by an /api router returns index.html so
+        # React Router handles client-side navigation. Registered last so all API
+        # routes take precedence.
+        @app.get("/{full_path:path}", include_in_schema=False)
+        async def serve_spa(full_path: str) -> FileResponse:
+            candidate = _static_dir / full_path
+            if candidate.is_file():
+                return FileResponse(str(candidate))
+            return FileResponse(str(_static_dir / "index.html"))
 
     return app
 
