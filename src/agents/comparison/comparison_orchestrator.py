@@ -74,4 +74,5 @@ class ComparisonOrchestrator(BaseAgent):
             template_values,
             session_id=session_id,
             project_id=project_id,
+            model_override="claude-sonnet-4-6",
         )
