@@ -183,6 +183,7 @@ class BaseAgent:
         session_id: str | None = None,
         project_id: str | None = None,
         user_id: str | None = None,
+        max_tokens_override: int | None = None,
     ) -> dict:
         """
         Invoke the LLM with automatic fallback, telemetry, and JSON parsing.
@@ -204,6 +205,7 @@ class BaseAgent:
         config = (await self._load_prompt(agent_name)).model_config_
         primary_model = config.model_name
         fallback_model = config.fallback_model
+        max_tokens = max_tokens_override if max_tokens_override is not None else config.max_tokens
 
         start = time.perf_counter()
         response: LlmResponse | None = None
@@ -217,7 +219,7 @@ class BaseAgent:
                 model=primary_model,
                 system=system_prompt,
                 user=user_message,
-                max_tokens=config.max_tokens,
+                max_tokens=max_tokens,
                 temperature=config.temperature,
             )
         except Exception as exc:
@@ -238,7 +240,7 @@ class BaseAgent:
                     model=fallback_model,
                     system=system_prompt,
                     user=user_message,
-                    max_tokens=config.max_tokens,
+                    max_tokens=max_tokens,
                     temperature=config.temperature,
                 )
             except Exception as exc:
@@ -328,6 +330,7 @@ class BaseAgent:
         session_id: str | None = None,
         project_id: str | None = None,
         user_id: str | None = None,
+        max_tokens_override: int | None = None,
     ) -> dict:
         """
         End-to-end convenience entry point that subclasses call.
@@ -360,4 +363,5 @@ class BaseAgent:
             session_id=session_id,
             project_id=project_id,
             user_id=user_id,
+            max_tokens_override=max_tokens_override,
         )

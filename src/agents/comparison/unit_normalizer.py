@@ -106,4 +106,5 @@ class UnitNormalizer(BaseAgent):
             template_values,
             session_id=session_id,
             project_id=project_id,
+            max_tokens_override=8000,
         )

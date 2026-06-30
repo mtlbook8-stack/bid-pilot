@@ -74,7 +74,7 @@
     "isActive": true,
     "modelConfig": {
       "modelName": "claude-sonnet-4-6",
-      "maxTokens": 4000,
+      "maxTokens": 8000,
       "temperature": 0.1,
       "fallbackModel": null
     },
@@ -108,7 +108,7 @@
     "isActive": true,
     "modelConfig": {
       "modelName": "claude-sonnet-4-6",
-      "maxTokens": 3000,
+      "maxTokens": 8000,
       "temperature": 0.2,
       "fallbackModel": null
     },
