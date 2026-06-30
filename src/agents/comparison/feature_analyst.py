@@ -19,6 +19,19 @@ from src.agents.comparison.unit_normalizer import UnitNormalizer
 from src.core.enums import AgentName
 from src.core.errors.app_error import AppError
 
+# Injected into the system prompt to keep the response within the model's output
+# token limit. source_quote and value fields can balloon when bids contain long
+# paragraphs; capping them here avoids truncated JSON that breaks json.loads.
+_CONCISENESS_NOTE = (
+    "\n\nOUTPUT LENGTH CONSTRAINT: The total JSON response must stay under 6000 tokens. "
+    "To fit within this limit:\n"
+    "- Keep each 'value' field to 1 short sentence (max 20 words)\n"
+    "- Keep each 'source_quote' field to 1-2 sentences (max 30 words) — a direct excerpt only\n"
+    "- Keep 'summary' to 2-3 sentences\n"
+    "- Limit 'issue' in red_flags to 1 sentence\n"
+    "Prioritize completeness of structure (all rows, all bids) over verbosity in any single field."
+)
+
 
 class FeatureAnalyst(BaseAgent):
     """
@@ -78,4 +91,5 @@ class FeatureAnalyst(BaseAgent):
             session_id=session_id,
             project_id=project_id,
             max_tokens_override=8000,
+            system_prompt_suffix=_CONCISENESS_NOTE,
         )
