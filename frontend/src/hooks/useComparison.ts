@@ -67,12 +67,18 @@ export function useComparison(
   // assistant reply (no token deltas), then `done`. An `error` frame carries
   // the AppError envelope. We fold each into the placeholder assistant turn.
   const handleEvent = useCallback((evt: ChatStreamEvent) => {
+    // IMPORTANT: capture the ref value synchronously before scheduling any
+    // state update. When `message` and `done` arrive in the same TCP chunk
+    // they are processed in the same synchronous pass — the `done` branch sets
+    // assistantIndexRef.current = null immediately, so reading the ref *inside*
+    // a setMessages updater (which runs asynchronously on the next React flush)
+    // would always see null and silently drop the message.
+    const idx = assistantIndexRef.current;
+
     switch (evt.event) {
       case "routed":
-        // Orchestrator picked a specialist; tag the placeholder reply.
         setLastHandledBy(evt.agent);
         setMessages((prev) => {
-          const idx = assistantIndexRef.current;
           if (idx === null) return prev;
           const next = [...prev];
           next[idx] = { ...next[idx], handledBy: evt.agent };
@@ -80,10 +86,8 @@ export function useComparison(
         });
         break;
       case "message":
-        // The complete assistant reply for this turn.
         if (evt.handledBy) setLastHandledBy(evt.handledBy);
         setMessages((prev) => {
-          const idx = assistantIndexRef.current;
           if (idx === null) return prev;
           const next = [...prev];
           next[idx] = {
@@ -100,7 +104,6 @@ export function useComparison(
         break;
       case "error":
         setMessages((prev) => {
-          const idx = assistantIndexRef.current;
           if (idx === null) return prev;
           const next = [...prev];
           next[idx] = {
