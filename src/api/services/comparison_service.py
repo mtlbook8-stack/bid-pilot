@@ -208,46 +208,48 @@ class ComparisonService:
         self, session: ComparisonSession, agent: str, extracted_query: str
     ) -> str:
         """
-        Route the message to the named specialist and return its text content.
+        Route the message to the named specialist and return conversational text.
 
-        The routing map mirrors the ComparisonOrchestrator's agent vocabulary
-        (build doc Agent 4). For agents whose natural output is structured (cost,
-        feature, decision, data query, summarizer), we JSON-encode the result as
-        the message content — the frontend renders it; the priority is a working,
-        well-structured pipeline. `table_update` and `clarification` are handled
-        as conversational responses without invoking a heavy agent.
+        All analytical agents (cost, feature, decision, summarizer) now route
+        through DecisionExplainer so the chat always returns human-readable prose
+        rather than raw JSON. data_query runs its two-phase code-gen path and also
+        extracts the plain-text answer. table_update and clarification are handled
+        with hardcoded strings.
+
+        If the comparison table is not yet ready (session still assembling or in
+        failed state), we return a friendly plain-text notice rather than JSON.
         """
-        # --- cost: re-run the cost comparison over the session's normalized data.
-        # The session already holds an assembled table; for a chat cost question
-        # we surface the existing cost section (cheap, deterministic) rather than
-        # re-paying for a full re-normalize. If no table exists yet we say so.
-        if agent == "cost_comparator":
-            return self._encode(self._cost_section(session))
+        _NO_TABLE = (
+            "The comparison table hasn't been built yet. "
+            "Please start or retry the comparison from the job page first."
+        )
 
-        # --- feature: surface the existing feature section similarly.
-        if agent == "feature_analyst":
-            return self._encode(self._feature_section(session))
+        # --- cost / feature / decision: all answered by DecisionExplainer prose.
+        if agent in ("cost_comparator", "feature_analyst", "decision_explainer"):
+            if session.table is None:
+                return _NO_TABLE
+            return await self._explain_as_text(session, extracted_query)
 
-        # --- unit_normalizer: re-normalize the bids and return the new groups.
+        # --- unit_normalizer: give a prose summary of the normalized line items.
         if agent == "unit_normalizer":
-            return self._encode(await self._renormalize(session))
+            if session.table is None:
+                return _NO_TABLE
+            return await self._explain_as_text(
+                session,
+                f"Summarize the unit normalization and line items. {extracted_query}",
+            )
 
         # --- data_query: two-phase cross-project query (plan -> fetch -> code).
         if agent == "data_query":
-            return self._encode(await self._data_query(session, extracted_query))
+            result = await self._data_query(session, extracted_query)
+            return str(result.get("answer") or self._encode(result))
 
-        # --- session_summarizer: produce a shareable summary inline.
+        # --- session_summarizer: one-liner summary of the whole session.
         if agent == "session_summarizer":
-            return self._encode(await self._summarize_session(session))
+            result = await self._summarize_session(session)
+            return str(result.get("one_liner") or result.get("overview") or self._encode(result))
 
-        # --- decision_explainer: structured decision analysis (Agent 13).
-        if agent == "decision_explainer":
-            return self._encode(await self._explain(session, extracted_query))
-
-        # --- table_update: a direct edit request. Applying arbitrary edits is out
-        # of scope for the server here; we acknowledge the request so the UI can
-        # capture it as a conversational turn (the edit itself is a frontend table
-        # mutation). Documented simplification.
+        # --- table_update: acknowledge the edit request (edits happen client-side).
         if agent == "table_update":
             return (
                 "Noted the requested table change. Edit the comparison table "
@@ -259,6 +261,24 @@ class ComparisonService:
             "Could you clarify what you'd like to compare or decide? For example "
             "ask about costs, warranties, schedule, or a recommendation."
         )
+
+    async def _explain_as_text(
+        self, session: ComparisonSession, query: str
+    ) -> str:
+        """Run DecisionExplainer and return conversational prose from the result."""
+        result = await self._explain(session, query)
+        # DecisionExplainer returns: analysis_type, vendors_analyzed, key_trade_off,
+        # recommendation, questions_to_resolve
+        parts = []
+        if result.get("key_trade_off"):
+            parts.append(str(result["key_trade_off"]))
+        if result.get("recommendation"):
+            parts.append(f"Recommendation: {result['recommendation']}")
+        if result.get("questions_to_resolve"):
+            qs = result["questions_to_resolve"]
+            if isinstance(qs, list) and qs:
+                parts.append("Open questions: " + "; ".join(str(q) for q in qs))
+        return "\n\n".join(parts) if parts else self._encode(result)
 
     async def _renormalize(self, session: ComparisonSession) -> dict:
         """Re-run UnitNormalizer over the session's bids (build doc Agent 5)."""
