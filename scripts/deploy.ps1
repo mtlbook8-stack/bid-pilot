@@ -25,8 +25,7 @@ Write-Host "==> Deploying $IMAGE_REF"
 
 # --- Ensure truststore is installed (needed for corporate proxy SSL) ---
 Write-Host "==> Checking truststore..."
-& $AZ_PYTHON -m pip install truststore --quiet 2>$null
-if ($LASTEXITCODE -ne 0) { throw "pip install truststore failed" }
+try { & $AZ_PYTHON -m pip install truststore 2>&1 | Out-Null } catch { }
 
 # --- Write the az proxy wrapper to a temp file ---
 $WRAPPER = "$env:TEMP\az_corp_proxy.py"

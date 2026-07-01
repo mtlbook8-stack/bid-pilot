@@ -1,21 +1,11 @@
 # BidPilot API — production container image.
 #
-# Three-stage build:
-#   Stage 1 (frontend): Node build of the React SPA → produces /frontend/dist
-#   Stage 2 (builder):  Python wheels compiled into a venv with build tools
-#   Stage 3 (runtime):  Minimal image — venv + Python source + SPA static files
-# FastAPI serves the SPA static files directly; no separate hosting needed.
+# Two-stage build: stage 1 compiles wheels into a venv with build tools, stage 2
+# copies the venv into a minimal runtime image. This keeps the final image small
+# and free of compilers/headers (smaller attack surface, faster cold start on
+# Azure Container Apps).
 
-# ---------- Stage 1: frontend ----------
-FROM node:20-slim AS frontend-builder
-WORKDIR /frontend
-# Install deps first so this layer is cached unless package files change.
-COPY frontend/package*.json ./
-RUN npm ci
-COPY frontend/ ./
-RUN npm run build
-
-# ---------- Stage 2: builder ----------
+# ---------- Stage 1: builder ----------
 # Use Microsoft Artifact Registry's Azure Linux Python image — avoids Docker
 # Hub anonymous pull rate limits when building from ACR Tasks. Slim base, no
 # compilers in the runtime stage.
@@ -60,8 +50,6 @@ WORKDIR /app
 COPY --from=builder /opt/venv /opt/venv
 COPY --chown=app:app src ./src
 COPY --chown=app:app data ./data
-# SPA static files — FastAPI serves these at /  (see src/api/main.py).
-COPY --from=frontend-builder --chown=app:app /frontend/dist ./static
 
 USER app
 
